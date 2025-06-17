@@ -1,0 +1,27 @@
+DNA-PAINT/DNA-PAINT_imaging					
+DNA-PAINT_R1,R2,R3,R4.hdf5						Standard DNA-PAINT measurement by imaging with the four imagers R1, R2, R3 and R4 simultaneously.
+DNA-PAINT_R1,R2,R3,R4_apicked.hdf5					DNA-PAINT localizations from picked nuclear pore complexes (NPCs).
+DNA-PAINT_R1,R2,R3,R4_apicked_centers.hdf5				Cluster centers of DNA-PAINT localization groups. Note: unambiguous assignment of localizations to clusters not possible due to insufficent resolution in DNA-PAINT. Clustering the DNA-PAINT measurement serves to illustrate the resolution gain by RESI via NND analysis performed on the cluster centers (equaling RESI localizations if RESI was performed).
+
+
+DNA-PAINT/DNA-PAINT_via_merged_RESI_rounds
+DNA-PAINT_R1,R2,R3,R4_multi.hdf5					Mimiced DNA-PAINT measurement by merging localizations from the four RESI rounds. Merged files: RESI_R1_apicked.hdf5, RESI_R2_apicked.hdf5, RESI_R3_apicked.hdf5 and RESI_R4_apicked.hdf5.
+
+
+RESI/RESI rounds
+RESI_R1.hdf5								DNA-PAINT measurement with R1 imager.
+RESI_R2.hdf5								DNA-PAINT measurement with R2 imager.
+RESI_R3.hdf5								DNA-PAINT measurement with R3 imager.
+RESI_R4.hdf5								DNA-PAINT measurement with R4 imager.
+RESI_R1_apicked.hdf5							DNA-PAINT localizations of R1 round for picked nuclear pore complexes.
+RESI_R2_apicked.hdf5							DNA-PAINT localizations of R2 round for picked nuclear pore complexes.
+RESI_R3_apicked.hdf5							DNA-PAINT localizations of R3 round for picked nuclear pore complexes.
+RESI_R4_apicked.hdf5							DNA-PAINT localizations of R4 round for picked nuclear pore complexes.
+
+
+RESI/RESI result
+RESI_R1_apicked_resi.hdf5						RESI localizations of R1 round for picked nuclear pore complexes.
+RESI_R2_apicked_resi.hdf5						RESI localizations of R2 round for picked nuclear pore complexes.
+RESI_R3_apicked_resi.hdf5						RESI localizations of R3 round for picked nuclear pore complexes.
+RESI_R4_apicked_resi.hdf5						RESI localizations of R4 round for picked nuclear pore complexes.
+RESI_R1,R2,R3,R4_multi.hdf5						All RESI localizations from picked nuclear pore complexes from all four rounds (overall result)

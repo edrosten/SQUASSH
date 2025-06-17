@@ -1,0 +1,65 @@
+[tool.pylint.'MAIN']
+# Set maximum number of arguments, attributes, etc.
+max-line-length = 280
+max-args = 10
+max-attributes = 20
+
+[tool.pylint.design]
+max-positional-arguments = 6
+
+[tool.pylint.typecheck]
+generated-members = [
+    "numpy.*",
+    "torch.*",
+    "cv2.*"
+]
+
+[tool.pylint.miscellaneous]
+notes = ["XXX", "FIXME"]
+
+[tool.pylint.messages_control]
+disable = [
+    "invalid-name",
+    "missing-module-docstring",
+    "too-many-locals",
+    "too-many-statements",
+    "trailing-whitespace",
+    "trailing-newlines",
+    "too-few-public-methods",
+    "too-many-positional-arguments",
+	"similarities",
+]
+
+
+[tool.ruff]
+
+
+[tool.ruff.lint]
+ignore = [ 
+	"E741"  # I like being able to use l an O as variable names
+] 
+
+
+
+[tool.mypy]
+warn_return_any = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+  "tifffile.*",
+  "scipy.*",
+  "astropy.*",
+  "matplotlib.pyplot.*",
+  "torchvision.*",
+  "skimage.*",
+  "h5py.*",
+  "pystrict.*"
+]
+ignore_missing_imports = true
+

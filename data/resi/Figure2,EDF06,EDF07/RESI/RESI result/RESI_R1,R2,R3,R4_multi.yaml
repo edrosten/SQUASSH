@@ -1,0 +1,211 @@
+Byte Order: <
+Camera: Zyla 4.2 Plus
+Data Type: uint16
+File: W:\users\reinhardt\z_raw\Resi\220125_Nup96-GFP_4c\R1_7nt_150pM_18mW_150ms_561_1\R1_7nt_150pM_18mW_150ms_561_1_MMStack_Pos0.ome.tif
+Frames: 12500
+Height: 512
+Micro-Manager Acquisiton Comments:
+- Apollo
+- 110deg at 100mW
+- ''
+Micro-Manager Metadata:
+  Binning: 2
+  BitDepth: 16
+  COM3-AnswerTimeout: '500.0000'
+  COM3-BaudRate: '115200'
+  COM3-DataBits: '8'
+  COM3-DelayBetweenCharsMs: '0.0000'
+  COM3-Description: Serial port driver (boost:asio)
+  COM3-Handshaking: 'Off'
+  COM3-Name: COM3
+  COM3-Parity: None
+  COM3-StopBits: '1'
+  COM3-Verbose: '1'
+  Camera: Zyla 4.2 Plus
+  ChannelIndex: 0
+  Core-AutoFocus: PFS
+  Core-AutoShutter: '1'
+  Core-Camera: Zyla 4.2 Plus
+  Core-ChannelGroup: ''
+  Core-Focus: ZDrive
+  Core-Galvo: ''
+  Core-ImageProcessor: ''
+  Core-Initialize: '1'
+  Core-SLM: ''
+  Core-Shutter: Turret1Shutter
+  Core-TimeoutMs: '5000'
+  Core-XYStage: XYStage
+  ElapsedTime-ms: 973
+  Exposure-ms: 150
+  FileName: R1_7nt_150pM_18mW_150ms_561_1_MMStack_Pos0.ome.tif
+  FilterTurret1-Label: 2-TIRF 560
+  FilterTurret1-State: '1'
+  Frame: 0
+  FrameIndex: 0
+  ImageNumber: 0
+  IntermediateMagnification-Magnification: 1.0x
+  LightPath-Label: 2-R100
+  LightPath-State: '1'
+  MicroscopeID-ClosedPosition: '0'
+  MicroscopeID-Description: Demo filter wheel driver
+  MicroscopeID-HubID: ''
+  MicroscopeID-Label: Apollo
+  MicroscopeID-Name: DWheel
+  MicroscopeID-State: '0'
+  Nosepiece-Label: 1-Apo TIRF 100x Oil
+  Nosepiece-State: '0'
+  PFS-DichroicMirrorInserted: 'Yes'
+  PFS-FocusMaintenance: 'Off'
+  PFS-LEDIntensity: '47'
+  PixelSize_um: 0
+  PixelType: GRAY16
+  PositionIndex: 0
+  ROI: 255-255-512-512
+  Slice: 0
+  SliceIndex: 0
+  Turret1Shutter-State: '0'
+  UUID: 29037b32-f565-471f-95ab-9a91e9518c94
+  XPositionUm: 2000.9
+  XYStage-Acceleration-AC(ms): '100'
+  XYStage-AxisLetterX: X
+  XYStage-AxisLetterY: Y
+  XYStage-Backlash-B: '0.0040'
+  XYStage-BuildName: STD_XY
+  XYStage-CompileDate: May 03 2019:11:28:11
+  XYStage-Description: ASI XY stage driver adapter
+  XYStage-EnableAdvancedProperties: 'No'
+  XYStage-Error-E(nm): '1000.0000'
+  XYStage-FinishError-PCROS(nm): '2.0000'
+  XYStage-JoyStick Fast Speed: '60'
+  XYStage-JoyStick Reverse: 'Off'
+  XYStage-JoyStick Slow Speed: '5'
+  XYStage-Maximum Speed (Do Not Change): '0.8576'
+  XYStage-MotorOnOff: 'On'
+  XYStage-Name: XYStage
+  XYStage-OnlySendSerialCommandOnChange: 'Yes'
+  XYStage-OverShoot(um): '0.0000'
+  XYStage-Port: COM3
+  XYStage-SerialCommand: ''
+  XYStage-SerialResponse: ''
+  XYStage-Speed-S: '0.5746'
+  XYStage-StepSizeX_um: '0.0100'
+  XYStage-StepSizeY_um: '0.0100'
+  XYStage-TransposeMirrorX: '0'
+  XYStage-TransposeMirrorY: '0'
+  XYStage-VectorMoveX-VE(mm/s): '0.0000'
+  XYStage-VectorMoveY-VE(mm/s): '0.0000'
+  XYStage-Version: 'Version: USB-9.2m '
+  XYStage-Wait_Cycles: '0'
+  YPositionUm: -12922.1
+  ZPositionUm: 3621.98
+  Zyla 4.2 Plus-AccumulateCount: '1'
+  Zyla 4.2 Plus-AcquisitionWindow: Custom AOI (512x512)
+  Zyla 4.2 Plus-AuxiliaryOutSource (TTL I/O): FireAll
+  Zyla 4.2 Plus-AuxiliaryOutTwoSource (TTL I/O): ExternalShutterControl
+  Zyla 4.2 Plus-Binning: 2x2
+  Zyla 4.2 Plus-CameraFirmware: 15.8.12.0
+  Zyla 4.2 Plus-CameraID: VSC-08707
+  Zyla 4.2 Plus-CameraModel: ZYLA-4.2P-USB3
+  Zyla 4.2 Plus-CameraName: Zyla 4.2 USB3
+  Zyla 4.2 Plus-CurrentSoftware: 3.13.30034.0
+  Zyla 4.2 Plus-Description: SDK3 Device Adapter for sCMOS cameras
+  Zyla 4.2 Plus-ElectronicShutteringMode: Rolling
+  Zyla 4.2 Plus-Exposure: '150.00'
+  Zyla 4.2 Plus-Ext (Exp) Trigger Timeout[ms]: '5000'
+  Zyla 4.2 Plus-FanSpeed: 'On'
+  Zyla 4.2 Plus-FrameRate: '4.4525'
+  Zyla 4.2 Plus-FrameRateLimits: 'Min: 4.45252  Max: 4.99960  Max Sustain: 134.63637'
+  Zyla 4.2 Plus-LightScanPlus-AlternatingReadoutDirection: 'Off'
+  Zyla 4.2 Plus-LightScanPlus-ExposedPixelHeight: '8333'
+  Zyla 4.2 Plus-LightScanPlus-ExternalTriggerDelay [s]: '0.0000'
+  Zyla 4.2 Plus-LightScanPlus-LineScanSpeed [lines/sec]: '41666.6667'
+  Zyla 4.2 Plus-LightScanPlus-RowReadTime: '0.0000'
+  Zyla 4.2 Plus-LightScanPlus-ScanSpeedControlEnable: 'Off'
+  Zyla 4.2 Plus-LightScanPlus-SensorReadoutMode: Centre Out Simultaneous
+  Zyla 4.2 Plus-Overlap: 'On'
+  Zyla 4.2 Plus-PixelEncoding: Mono16
+  Zyla 4.2 Plus-PixelReadoutRate: 200 MHz - lowest noise
+  Zyla 4.2 Plus-RollingShutterGlobalClear: 'Off'
+  Zyla 4.2 Plus-Sensitivity/DynamicRange: 16-bit (low noise & high well capacity)
+  Zyla 4.2 Plus-SensorCooling: 'On'
+  Zyla 4.2 Plus-SensorTemperature: '0.2700'
+  Zyla 4.2 Plus-ShutterOutputMode: Closed
+  Zyla 4.2 Plus-ShutterTransferTime [s]: '0.0000'
+  Zyla 4.2 Plus-SpuriousNoiseFilter: 'On'
+  Zyla 4.2 Plus-StaticBlemishCorrection: 'On'
+  Zyla 4.2 Plus-TemperatureControl: '0.00'
+  Zyla 4.2 Plus-TemperatureStatus: Not Stabilised
+  Zyla 4.2 Plus-TransposeCorrection: '0'
+  Zyla 4.2 Plus-TransposeMirrorX: '0'
+  Zyla 4.2 Plus-TransposeMirrorY: '0'
+  Zyla 4.2 Plus-TransposeXY: '0'
+  Zyla 4.2 Plus-TriggerMode: Internal (Recommended for fast acquisitions)
+  completeCoords: null
+  receivedTime: 2022-01-25 16:43:19 +0100
+  userData: null
+Width: 512
+---
+Box Size: 11
+Generated by: Picasso Localize
+Min. Net Gradient: 2000
+Pixelsize: 130
+ROI: null
+Z Calibration:
+  X Coefficients:
+  - -1.6680708772714857e-18
+  - 2.4038209829154137e-15
+  - 2.1771067332017187e-12
+  - -3.0324788231238476e-09
+  - 3.5433326085494675e-06
+  - 0.0023039289366630425
+  - 1.2026032603707493
+  Y Coefficients:
+  - -1.7708672355491796e-18
+  - 9.808249540501714e-16
+  - 2.10653248543535e-12
+  - 2.228026137415219e-11
+  - 3.628007433361433e-06
+  - -0.001646865504353452
+  - 1.2257249554338714
+Z Calibration Path: W:/users/z.3D_calibration/Apollo/210120_561nm/210120_561nm_dz_5nm_finalfinal_1/210120_561nm_dz_5nm_finalfinal_1_MMStack_Pos0.ome_3d_calib.yaml
+---
+Generated by: Picasso Render
+Last driftfile: W:/users/reinhardt/z_raw/Resi/220125_Nup96-GFP_4c/R1_7nt_150pM_18mW_150ms_561_1/R1_7nt_150pM_18mW_150ms_561_1_MMStack_Pos0.ome_locs_220125_182444_drift.txt
+---
+Generated by: Picasso Render
+Last driftfile: W:/users/reinhardt/z_raw/Resi/220125_Nup96-GFP_4c/R1_7nt_150pM_18mW_150ms_561_1/R1_7nt_150pM_18mW_150ms_561_1_MMStack_Pos0.ome_locs_render_220202_200732_drift.txt
+---
+Generated by: Picasso Filter
+bg: null
+d_zcalib: null
+ellipticity: null
+frame: null
+lpx: null
+lpy: null
+net_gradient: null
+photons: null
+sx:
+- 0.49884750037935355
+- 2.5077253836950404
+sy:
+- 0.5077803913244446
+- 2.50511295838259
+x: null
+y: null
+z:
+- -400.42825966158154
+- 402.4791016761219
+---
+Generated by: Picasso Render
+Last driftfile: null
+---
+Generated by: 'Picasso Render : Pick'
+Pick Diameter: 1.5
+Pick Shape: Circle
+---
+Files:
+- W:\users\reinhardt\z_raw\Resi\220125_Nup96-GFP_4c\aligned\R1_7nt_150pM_18mW_150ms_561_1_MMStack_Pos0.ome_locs_render_render_filter_aligned_apicked_resi_11_10_22.0.hdf5
+- W:\users\reinhardt\z_raw\Resi\220125_Nup96-GFP_4c\aligned\R2_7nt_100pM_18mW_150ms_561_1_MMStack_Pos0.ome_locs_render_render_filter_aligned_apicked_resi_11_10_22.0.hdf5
+- W:\users\reinhardt\z_raw\Resi\220125_Nup96-GFP_4c\aligned\R3_7nt_100pM_18mW_150ms_561_1_MMStack_Pos0.ome_locs_render_render_filter_aligned_apicked_resi_11_10_22.0.hdf5
+- W:\users\reinhardt\z_raw\Resi\220125_Nup96-GFP_4c\aligned\R4_7nt_100pM_18mW_150ms_561_1_MMStack_Pos0.ome_locs_render_render_filter_aligned_apicked_resi_11_10_22.0.hdf5
+Generated by: Picasso Join
