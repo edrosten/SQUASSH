@@ -1,0 +1,15 @@
+torch
+torchvision
+tqdm
+scipy
+scikit-image
+pystrict
+matplotlib
+PyYAML
+h5py
+tifffile
+plyfile
+opencv-python
+pyarrow
+bioio
+bioio_czi

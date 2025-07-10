@@ -15,6 +15,9 @@ If you want to train you will need a GPU. The examples were all tested on a
 2080Ti (11GB RAM), so may not run on a GPU with less RAM without modification.
 The code will execute on a CPU, but will be too slow to be useful in most cases.
 
+Note, 10 series GPUs such as the 1080Ti and Quadro P400 will not work as-is,
+because GPU use relies on torch.compile in order to have reasonable batch sizes. 
+
 You will probably want a program for viewing 3D models in PLY format.
 [Meshlab](https://www.meshlab.net/) is a very good choice.
 
