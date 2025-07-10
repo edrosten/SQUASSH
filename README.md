@@ -21,6 +21,12 @@ because GPU use relies on torch.compile in order to have reasonable batch sizes.
 You will probably want a program for viewing 3D models in PLY format.
 [Meshlab](https://www.meshlab.net/) is a very good choice.
 
+
+## Trying out SQUASSH on Colab
+
+[Try training nuclear pore complexes here!](https://colab.research.google.com/github/edrosten/squassh/blob/master/train_nupc.ipynb)
+
+
 ## Getting SQUASSH
 
 You will need [git LFS](https://github.com/git-lfs/git-lfs/tree/main) if you
