@@ -1,0 +1,11 @@
+.*.sw?
+__pycache__
+log/
+cache/
+hax*
+lol*
+wtf*
+tmp/
+tmp*
+snapshot??.png
+centriole_montage.fits
