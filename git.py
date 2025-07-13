@@ -2,10 +2,20 @@ import os
 import subprocess
 import sys
 import time
+from pathlib import Path
 
-_result = os.system('git diff-index --quiet HEAD --')
-_status = subprocess.check_output(['git', 'status', '--porcelain']).decode('utf-8').strip()
+_cwd = os.getcwd()
+_result = subprocess.run(["git", "diff-index", "--quiet", "HEAD",  "--"]).returncode
 _clear = True
+
+if _result == 128:
+    _cwd = Path(__file__).parent
+    _result = subprocess.run(["git", "diff-index", "--quiet", "HEAD",  "--"], cwd=_cwd).returncode
+    _clear = False
+
+
+
+_status = subprocess.check_output(['git', 'status', '--porcelain'], cwd=_cwd).decode('utf-8').strip()
 _test_no_fail=False
 
 
@@ -14,7 +24,7 @@ for l in _status.splitlines():
     if v[0] == '??':
         _clear = False
 
-_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('utf-8').strip()
+_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=_cwd).decode('utf-8').strip()
 
 dirname = str(int(time.time())) + "-" + _hash
 shorthash = _hash[0:8]

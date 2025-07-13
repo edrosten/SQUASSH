@@ -1,4 +1,5 @@
 from typing import List, Any, Tuple
+from pathlib import Path
 import yaml
 import h5py
 import numpy as np
@@ -71,7 +72,7 @@ def _load_data(file_root: str)->Tuple[List[torch.Tensor], List[torch.Tensor]]:
 
 def load_3d_with_means()->Tuple[List[torch.Tensor], List[torch.Tensor]]:
     '''Load the dataset'''
-    file_root="data/resi/Figure2,EDF06,EDF07/RESI/RESI result/RESI_R1,R2,R3,R4_multi"
+    file_root=str(Path(__file__).parent/"data/resi/Figure2,EDF06,EDF07/RESI/RESI result/RESI_R1,R2,R3,R4_multi")
     return _load_data(file_root)
 
 def load_3d()->List[torch.Tensor]:
@@ -82,7 +83,7 @@ def load_3d()->List[torch.Tensor]:
 
 def load_3d_PAINT_with_means()->Tuple[List[torch.Tensor], List[torch.Tensor]]:
     '''Load the paint r1,r2,r3,r4_apicked dataset'''
-    file_root="data/resi/Figure2,EDF06,EDF07/DNA-PAINT/DNA-PAINT_imaging/DNA-PAINT_R1,R2,R3,R4_apicked"
+    file_root=str(Path(__file__).parent/"data/resi/Figure2,EDF06,EDF07/DNA-PAINT/DNA-PAINT_imaging/DNA-PAINT_R1,R2,R3,R4_apicked")
     return _load_data(file_root)
 
 def load_3d_PAINT()->List[torch.Tensor]:

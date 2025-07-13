@@ -1,4 +1,5 @@
 .*.sw?
+.ipynb_checkpoints/
 __pycache__
 log/
 cache/
