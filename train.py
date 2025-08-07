@@ -4,7 +4,7 @@ import sys
 import time
 import random
 import pprint
-from typing import Tuple, List, Optional, Union, Iterator, Iterable, TypeVar
+from typing import Tuple, List, Optional, Union, Iterator, Iterable, TypeVar, cast
 
 
 from tqdm import tqdm
@@ -394,7 +394,7 @@ def _train_dataset(subdir:Optional[str], param_txt:List[str],
                 optimizer.step()
                 
                 # pylint: disable=line-too-long
-                print(f"{epoch + batch_no/len(loader)} {loss.item()} {diff_loss.item()} {validity_loss.item()} {running_diff_loss.item()} {epoch} {epochs} {batch_no} {len(loader)} {fwhm} {sigma_to_fwhm(predicted_sigma.mean().item())} {lr} ITERATION", file=log_loss)
+                print(f"{epoch + batch_no/len(loader)} {loss.item()} {diff_loss.item()} {validity_loss.item()} {running_diff_loss.item()} {epoch} {epochs} {batch_no} {len(loader)} {fwhm} {sigma_to_fwhm(cast(float,predicted_sigma.mean().item()))} {lr} ITERATION", file=log_loss)
 
             net.eval()
             if epoch % checkpoint_every == 0 or epoch == epochs-1:

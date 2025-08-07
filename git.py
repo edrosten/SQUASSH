@@ -4,7 +4,7 @@ import sys
 import time
 from pathlib import Path
 
-_cwd = os.getcwd()
+_cwd = Path(os.getcwd())
 _result = subprocess.run(["git", "diff-index", "--quiet", "HEAD",  "--"]).returncode
 _clear = True
 
