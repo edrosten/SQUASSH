@@ -1,5 +1,4 @@
 import zipfile
-from pathlib import Path
 from typing import Tuple
 
 import tqdm
@@ -8,6 +7,8 @@ import torch
 import numpy as np
 
 from ..volumetric import Metadata 
+from ..download_file_with_hash import ensure_cached_files_exist, cache_dir
+
 # From this publication
 # https://www.nature.com/articles/s41592-023-02126-0
 
@@ -21,7 +22,9 @@ class _ZipFileDataset(torch.utils.data.Dataset):
     def __init__(self, colour: str)->None:
         super().__init__()
 
-        self._zip_path = Path(__file__).parent/'DataForSusan.zip'
+        ensure_cached_files_exist({"d16f383a9ab87ecf0ecfcd9eefdc0f83ab9877978d1c137597fb58467fc04b24": "Legant/DataForSusan.zip"})
+
+        self._zip_path = cache_dir/'Legant'/'DataForSusan.zip'
         zf = zipfile.Path(self._zip_path) / 'DataForSusan'
 
         self._file_list = [i.filename.relative_to(self._zip_path) for i in zf.iterdir() if colour in i.name] # type: ignore[attr-defined]
