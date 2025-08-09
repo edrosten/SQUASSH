@@ -13,3 +13,4 @@ opencv-python
 pyarrow
 bioio
 bioio_czi
+requests

@@ -11,6 +11,7 @@ from torch import Tensor
 import numpy as np
 
 from ..segment_markup import _project_to_image, _coordinate_scale, _get_segments_scale
+from ..download_file_with_hash import ensure_cached_files_exist, cache_dir
 
 _PIXEL_SIZE_NM = 108 
 
@@ -148,43 +149,44 @@ def _load_dataset_general(particles: Path, markup: Path, size: int, segment_leng
     return good_segments, good_means
 
 
-def load()->list[Tensor]:
-    return load_dataset(Path(__file__).parent/"320pM_R4_1_cropped_locs_filter_render_drift_corrected.hdf5", _IMG_SIZE)[0]
-
-
-def load2()->dict[str, list[Tensor]]:
-    dataset = load_dataset(Path(__file__).parent/"2"/"040724_320pm_r2_2_driftcorr_filter.hdf5", _IMG_SIZE_2)[0]
-    # Markup from Susan
-    good = [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 42, 43, 44,
-            52, 53, 54, 56, 57, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 85,
-            86, 87, 88, 89, 101, 105, 106, 117, 122, 123, 124, 126, 128, 129, 130, 131,
-            132, 133, 137, 142, 145, 146, 148, 150, 151, 157, 169, 170, 177, 181, 182,
-            183, 184, 185, 186, 187, 188, 189, 194, 195, 196, 199, 200, 201, 203, 204,
-            205, 206, 207, 208, 209, 211, 213, 214, 216, 217, 218, 237, 245, 247, 248,
-            249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263,
-            265, 266, 267, 269, 271, 274, 277, 283, 288, 289, 290, 292, 293, 294, 295,
-            298, 299, 300, 302, 303, 305, 308, 309, 310, 311, 312, 313, 314, 316, 317,
-            318, 319, 320, 325, 326, 327, 328, 329, 330, 331, 334, 337, 346, 347, 348,
-            349, 350, 352, 353, 356, 362, 364, 365, 366, 367, 388, 389, 390, 392, 393,
-            395, 396, 397, 398, 399, 401, 402, 404, 405, 407, 408, 410, 411, 412, 415,
-            416, 418, 419, 420, 422, 423, 424, 425, 427, 431, 432, 435, 441, 442, 446,
-            450, 451, 453, 456, 464, 466, 472, 473, 474, 475, 476, 477, 485, 486, 498,
-            501, 509, 515, 520, 522, 523, 531, 533, 545, 546, 548, 554, 555, 556, 557,
-            558, 560, 561, 563, 565, 567, 568, 570, 571, 573, 574, 575, 576, 578, 594,
-            599, 605, 606, 607, 609, 616]
-
-    return {"040724_320pm_r2_2_driftcorr_filter": [ dataset[i] for i in good]}
-
-def load_01082024_50pm_1_sp0()->list[Tensor]:
-    return  load_dataset(Path(__file__).parent/"2"/"01082024_50pm_1_sp0_driftcorr_filter.hdf5", _IMG_SIZE_2)[0]
-
 def _parse_filter_file(f: Path)->list[int]:
     with f.open() as handle:
         lines = handle.readlines()
 
     return [ int(i.strip()) for i in lines if i.strip() != "" ]
 
+
+_files = {
+    "0ebb2773f30e4b0f363da59cddbe8c4c6de0a3eea1e19640a3e8e0148643cf19":"100pM_R4_1_locs_driftcorr.hdf5",
+    "a8febb3592fb4e5efc7705a3d71e69401fd2e0896da7a9af33a8a585a9e9baa0":"200pM_R4_1_locs_driftcorr.hdf5",
+    "f15852e9245d919677c72ffde8a13e46740c043aff4831db42525ff39661042f":"20240806_DNA_PAINT_7xR4_25pM_locs_driftcorr.hdf5",
+    "89a886c33b7f8bf79d1ed1f3acd6849673af3bd03ccbeeb2315e1cfd8a69d917":"20240806_DNA_PAINT_Seeds_7xR4_25pM_2_locs_driftcorr.hdf5",
+    "4f425fee45a48533a462ea449768023508bd8d7304cf154a7bd1c414400ebd78":"20240806_DNA_PAINT_Seeds_7xR4_25pM_3_locs_driftcorr.hdf5",
+    "a4d65a4bf1f3402dfc35b3ce8511e891dd48f55f1591801626b82771ea0e0eb0":"20240807_Segmented_seeds_5xR2_18pM_1_locs_driftcorr.hdf5",
+    "e426b085e9b82dc461c585b786dc4016a45deda26bd72c05dbd0cc14b7853881":"20240807_Segmented_seeds_5xR4_25pM_1_locs_driftcorr.hdf5",
+    "1d6c360ec38a24d225fba31c5811d9942a66755523fdd456bea9c5dcea60829f":"202408087_SegmentedSeeds_7xR4_25pM_1_locs_driftcorr.hdf5",
+    "742a4b82fbe12e3d12291ede3f8c09e488717cba7e0fb44df384685b0cb42015":"202408087_SegmentedSeeds_7xR5_18pM_1_locs_driftcorr2.hdf5",
+    "f11b849390259df2952bcdd627ee9edce370cef4451c46ee77444006951df898":"400pM_R4_1_locs_driftcorr.hdf5",
+    "880b2820125d5f0f1637dac1b96e10132feeb89d6828aea6f924739d39c1576a":"100pM_R4_1_locs_driftcorr_projected_markup.png",
+    "a6977e9b856389de49ed6d3ccc0695de898dd0d621a7343daccbf408f06588d9":"200pM_R4_1_locs_driftcorr_projected_markup.png",
+    "698f7fedc1b6cc20814893b280f571f5ff5e3f012ccd8555984fc8e737844023":"20240806_DNA_PAINT_7xR4_25pM_locs_driftcorr_projected_markup.png",
+    "4ca7d3c4965531efbf748d75b1dad0d88a3599e4c17bcbc80486b973ad565325":"20240806_DNA_PAINT_Seeds_7xR4_25pM_2_locs_driftcorr_projected_markup.png",
+    "df8e5894e0c5a726009968264f31602d8c5e27a2c4670ed027aa03645c7b0192":"20240806_DNA_PAINT_Seeds_7xR4_25pM_3_locs_driftcorr_projected_markup.png",
+    "707a1e1affbe04c4a00ca7cc984c57761cba813b73b0f23035ec22fb08c8c515":"20240807_Segmented_seeds_5xR2_18pM_1_locs_driftcorr_projected_markup.png",
+    "5a436219707188ff3be779e7a50da5b6dfa4b5458e171102fc658983804cbacc":"20240807_Segmented_seeds_5xR4_25pM_1_locs_driftcorr_projected_markup.png",
+    "22f00a6546d4cadecd3f2eb842a7c4f1d3fbb84d417400a4454288a1010a7fc6":"202408087_SegmentedSeeds_7xR4_25pM_1_locs_driftcorr_projected_markup.png",
+    "5057e108b085b0faa5552a5d2101a1a1b3bad8d13cea019ab367a6e32ab4a121":"400pM_R4_1_locs_driftcorr_projected_markup.png",
+}
+
+
+def _ensure_cache()->None:
+    ensure_cached_files_exist({h: 'dan_microtubules/3/'+n for h,n in _files.items()})
+
+
+
 def load_3(segment_length:int=64, do_filter:bool=True)->dict[str, list[Tensor]]:
+    _ensure_cache()
+
     files = [
         "100pM_R4_1_locs_driftcorr.hdf5",
         "200pM_R4_1_locs_driftcorr.hdf5",
@@ -204,7 +206,7 @@ def load_3(segment_length:int=64, do_filter:bool=True)->dict[str, list[Tensor]]:
         filter_file = Path(__file__).parent/'3'/('dan-stacks-26e28ec4-params2-' + f[:-5] + '.tex')
 
         if filter_file.exists():
-            particles = Path(__file__).parent/'3'/f
+            particles = cache_dir/'dan_microtubules'/'3'/f
             markup = particles.parent/(particles.stem + "_projected_markup.png")
 
             loaded = _load_dataset_general(particles, markup, _IMG_SIZE_2, segment_length)[0]
@@ -237,7 +239,7 @@ def load_cache_hdf_file(filename: Path)->Tensor:
     else:
         print("Loading from cache")
         loaded = torch.load(cache_file)
-        if type(loaded) == Tensor: # pylint: disable=unidiomatic-typecheck
+        if type(loaded) == Tensor: # pylint: disable=unidiomatic-typecheck # noqa: E721
             return loaded
         raise RuntimeError("Bad cache")
 

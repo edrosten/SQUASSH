@@ -227,7 +227,7 @@ def _get_segments_scale(im: NDArray[np.uint8], data: Dict[str, torch.Tensor], im
     #structuring_element = cv2.erode(structuring_element.numpy(), np.ones((3,3),dtype=np.uint8))
     
     # This will give a very good approximation of the centreline
-    dr: NDArray[np.uint8] = cv2.erode(r.numpy().astype(np.uint8), structuring_element) # type: ignore
+    dr: NDArray[np.uint8] = cv2.erode(r.numpy().astype(np.uint8), structuring_element)
     #clf()
     #imshow(dr)
     #waitforbuttonpress()

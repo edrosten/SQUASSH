@@ -9,8 +9,6 @@ import device
 
 
 
-load_3d = data.dan_microtubules.load
-load_3d_2 = data.dan_microtubules.load2
 load_3d_3 = data.dan_microtubules.load_3
 
 def _render_cube(centres: torch.Tensor, sigma_nm: torch.Tensor, weights: torch.Tensor, nm_per_pixel: float, size:int)->torch.Tensor:

@@ -16,8 +16,8 @@ def _mainfunc()->None:
     dataset_sum = volumetric.SimpleVolumetric3Plane(stack*1.0, metadata, device.device)
     dataset_max = volumetric.MaxVolumetric3Plane(stack*1.0, metadata, device.device)
 
-    dataset_sum.set_sigma(fwhm_to_sigma(1))
-    dataset_max.set_sigma(fwhm_to_sigma(1))
+    dataset_sum.set_sigma(fwhm_to_sigma(1.))
+    dataset_max.set_sigma(fwhm_to_sigma(1.))
 
     m_sum = montage.make_stack_images([ dataset_sum[i] for i in range(len(dataset_sum)) ])
     m_max = montage.make_stack_images([ dataset_max[i] for i in range(len(dataset_max)) ])
