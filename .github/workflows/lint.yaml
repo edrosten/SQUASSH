@@ -24,8 +24,8 @@ jobs:
 
       - name: pylint
         run: |
-          pylint check data/ train*.py
+          pylint data/ train*.py
 
       - name: mypy
         run: |
-          mypy check train*.py
+          mypy train*.py
