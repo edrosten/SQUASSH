@@ -1,15 +1,20 @@
 # SQUASSH
 
+## Trying out SQUASSH on Colab
+
+[Try training nuclear pore complexes here!](https://colab.research.google.com/github/edrosten/squassh/blob/master/train_nupc.ipynb)
+
+
 ## Prerequisites
 
 This code has only been tested on Linux (Mint and Ubuntu). It will likely work
 on other systems.
 
-The code currently uses `torch.compile`, so you will need a version of python
-compatible with the version of torch you are using. The latest python 3.11 is
-well tested but other versions should work too. All the code is know to run on 
-torch 2.2.1. Torch compile can be quite buggy and not all of the code has been
-fully tested on more recent torch versions.
+The code uses `torch.compile`, so you will need a version of python compatible
+with the version of torch you are using. The latest python 3.11 is well tested
+but other versions should work too. All the code is know to run on torch 2.2.1.
+Torch compile can be quite buggy and not all of the code has been fully tested
+on more recent torch versions.
 
 If you want to train you will need a GPU. The examples were all tested on a
 2080Ti (11GB RAM), so may not run on a GPU with less RAM without modification.
@@ -18,13 +23,8 @@ The code will execute on a CPU, but will be too slow to be useful in most cases.
 Note, 10 series GPUs such as the 1080Ti and Quadro P400 will not work as-is,
 because GPU use relies on torch.compile in order to have reasonable batch sizes. 
 
-You will probably want a program for viewing 3D models in PLY format.
+You will need a program for viewing 3D models in PLY format.
 [Meshlab](https://www.meshlab.net/) is a very good choice.
-
-
-## Trying out SQUASSH on Colab
-
-[Try training nuclear pore complexes here!](https://colab.research.google.com/github/edrosten/squassh/blob/master/train_nupc.ipynb)
 
 
 ## Getting SQUASSH
@@ -71,9 +71,9 @@ in meshlab.
 A more useful thing is a mesh of the isosurface of the model. You can get this
 by running:
 ```
-./render_marching_cubes.py -r 2 -t .2 sample_logs/1711985336-4d7cc96effb6e4740278bd39261837986110b4a2/run-000-phase_1/final_model.txt 
+./render_marching_cubes.py -r 2 -t .2 sample_logs/1711985336-4d7cc96effb6e4740278bd39261837986110b4a2/run-000-phase_1/final_model.txt -o tmp/mesh.ply
 ```
-This will create an output file `hax/mesh-0.2000.ply`, which you can open in
+This will create an output file `tmp/mesh.ply`, which you can open in
 meshlab. If you open both files, you can see the mesh and axis. 
 
 Further analysis will depend on the specifics of the data and what information
