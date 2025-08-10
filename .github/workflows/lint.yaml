@@ -1,0 +1,28 @@
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  run-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Ruff
+        run: ruff check data/ train*.py
+
+	  - name: pylint
+        run: pylint check data/ train*.py
+
+	  - name: mypy
+        run: mypy check train*.py

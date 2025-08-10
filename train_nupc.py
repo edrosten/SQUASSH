@@ -2,8 +2,8 @@ from typing import cast
 
 import torch
 import torch._dynamo
-import resi_data         # noqa
-import mark_bates_data   # noqa
+import resi_data         # noqa pylint:disable=unused-import
+import mark_bates_data   # noqa pylint:disable=unused-import
 import train
 import network
 import device

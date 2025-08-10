@@ -12,10 +12,10 @@ def _load_h5_file(filename: Path)->List[List[torch.Tensor]]:
     file = h5py.File(filename)
     d = np.array(file['output_data']['molecule_data'])
 
-    xind = d.dtype.names.index('X_POS_PIXELS')  
-    yind = d.dtype.names.index('Y_POS_PIXELS')  
-    zind = d.dtype.names.index('Z_POS_PIXELS')  
-    cind = d.dtype.names.index('CHANNEL')  
+    xind = d.dtype.names.index('X_POS_PIXELS') # type: ignore[union-attr] 
+    yind = d.dtype.names.index('Y_POS_PIXELS') # type: ignore[union-attr] 
+    zind = d.dtype.names.index('Z_POS_PIXELS') # type: ignore[union-attr] 
+    cind = d.dtype.names.index('CHANNEL') # type: ignore[union-attr] 
 
 
 
@@ -52,7 +52,7 @@ def _load_h5_file(filename: Path)->List[List[torch.Tensor]]:
     
 
 def load_all()->List[List[torch.Tensor]]:
-    
+    '''Load entire dataset''' 
     folder = Path(__file__).parent/'2021_02_03_nup96'
     files = list(folder.glob('*.h5'))
     files.sort()

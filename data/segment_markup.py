@@ -4,7 +4,8 @@ https://zenodo.org/record/6315338
 Fluorogenic_3D_MT_locs.hdf
 '''
 
-from typing import List, Dict, Any, Tuple, Optional, Iterable, TypeVar, cast
+from typing import List, Dict, Any, Tuple, Optional, cast
+import itertools
 from pathlib import Path
 import h5py
 import numpy as np
@@ -34,15 +35,15 @@ def _coordinate_scale(xy: torch.Tensor, image_size: int)->float:
     divisor = xy.max().item()+1
     return image_size/divisor
 
-def _to_image_coords_scale(xy: torch.Tensor, image_size: int, scale: float)->torch.Tensor:
+def _to_image_coords_scale(xy: torch.Tensor, scale: float)->torch.Tensor:
     return (xy*scale).floor().to(torch.int32)
 
 def _to_image_coords(xy: torch.Tensor, image_size: int)->torch.Tensor:
-    return _to_image_coords_scale(xy, image_size, _coordinate_scale(xy, image_size))
+    return _to_image_coords_scale(xy, _coordinate_scale(xy, image_size))
 
 
 def _xy_to_pixel_index_scale(xy: torch.Tensor, image_size: int, scale: float)->torch.Tensor:
-    im_coords = _to_image_coords_scale(xy, image_size, scale)
+    im_coords = _to_image_coords_scale(xy, scale)
     indices = im_coords[:,1]*image_size + im_coords[:,0]
     return indices
 
@@ -158,10 +159,9 @@ def _find_lines(thinned_np: NDArray[np.uint8])->List[torch.Tensor]:
     # The conv basically counts the number of things in a 3x3 window,
     # the multiply limits results to where there are points, so this 
     # gives the neighbour counts of all points. 
-    neighbour_counts = (torch.nn.functional.conv2d(input=thinned.unsqueeze(0).unsqueeze(0), weight=torch.ones(1,1,3,3,dtype=torch.uint8), bias=None, padding=1).squeeze(0).squeeze(0)-1) * thinned
+    neighbour_counts = (torch.nn.functional.conv2d(input=thinned.unsqueeze(0).unsqueeze(0), weight=torch.ones(1,1,3,3,dtype=torch.uint8), bias=None, padding=1).squeeze(0).squeeze(0)-1) * thinned # pylint: disable=not-callable
     
     if neighbour_counts.max() >= 3:
-        breakpoint()
         raise RuntimeError("Found a branch in the labelling :(")
 
     endpoints = torch.nonzero((neighbour_counts.squeeze()==1))
@@ -204,7 +204,7 @@ def _get_segments_scale(im: NDArray[np.uint8], data: Dict[str, torch.Tensor], im
     # red the labels
     b = torch.tensor(im[:,:,0])/255.0
     r = torch.tensor(im[:,:,2]) > 0 
-    g = torch.tensor(im[:,:,1])
+    #g = torch.tensor(im[:,:,1])
 
     #imshow(r)
     #waitforbuttonpress()
@@ -244,7 +244,7 @@ def _get_segments_scale(im: NDArray[np.uint8], data: Dict[str, torch.Tensor], im
 
 
     xy = torch.stack((data['x'], data['y']), 1)
-    im_coords = _to_image_coords_scale(xy, image_size, scale)
+    im_coords = _to_image_coords_scale(xy, scale)
     #scale = _coordinate_scale(xy, image_size)
 
 
@@ -262,18 +262,6 @@ def _get_segments_scale(im: NDArray[np.uint8], data: Dict[str, torch.Tensor], im
                     segments[-1].append(torch.stack([old, point], 0))
                 old = point
 
-    U = TypeVar('U')
-    def cat(iterable: Iterable[Iterable[U]])->Iterable[U]:
-        for i in iterable:
-            for j in i:
-                yield j
-
-    
-    #clf()
-    #imshow(im)
-    #ctr = 0
-
-        
     xyz = torch.stack((data['x'], data['y'], data['z']), 1)
     
     # Remove all data that isn't positively masked
@@ -285,7 +273,7 @@ def _get_segments_scale(im: NDArray[np.uint8], data: Dict[str, torch.Tensor], im
     im_coords = im_coords[mask,:]
 
     allpts = []
-    for segment in tqdm.tqdm(cat(segments), total=sum(len(i) for i in segments)):
+    for segment in tqdm.tqdm(itertools.chain.from_iterable(segments), total=sum(len(i) for i in segments)):
         l1 = segment[0,:]
         l2 = segment[1,:]
 

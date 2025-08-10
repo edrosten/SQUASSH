@@ -53,6 +53,7 @@ def _main()->None:
     params.schedule[0].initial_lr= 0.0001
     params.schedule[0].final_lr= 0.0001
 
+    # pylint: disable=unused-variable
     def f3()->None:
         net = network.PredictReconstructionStretch2D(**vars(data_parameters_2d), model_size=400)
         net.to(device.device)
@@ -76,6 +77,7 @@ def _main()->None:
         train.retrain(fast, dataset, params, 'dan6')
     f1()
 
+    # pylint: disable=unused-variable
     def f2()->None:
         net, _ = network.PredictReconstructionStretchExpandValid(**vars(data_parameters), model_size=400)
         net.to(device.device)

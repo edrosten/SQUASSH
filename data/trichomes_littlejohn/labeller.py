@@ -12,16 +12,16 @@ import matplotlib
 from matplotlib.widgets import Slider
 from matplotlib.backend_bases import MouseEvent, KeyEvent
 
-from . import Label, _R_Y, _vol_nm_scale_xyz, _vol_coords_xyz, _cut_volume, _load_and_reshape
+from . import Label, _R_Y, _vol_nm_scale_xyz, _vol_coords_xyz, _cut_volume
 #from . import _FILES_Oct_28, _labels_Oct_28
 #from . import _FILES_Nov_26, _labels_Nov_26
 #from . import _FILES_10_17_2024, _labels_10_17_2024
 #stack, metadata  = _load_and_reshape(_FILES_10_17_2024)
 #label_file = _labels_10_17_2024
 
-from ..trichomes import load_dataset_1
-label_file = Path(__file__).parent.parent/'trichomes'/'labels.zip'
-stack, metadata  = load_dataset_1()
+from . import load_nov_26_unlabelled
+label_file = Path(__file__).parent/'Nov_26th'/'labels.zip'
+stack, metadata  = load_nov_26_unlabelled()
 
 
 labels: list[Label|None] = [None] * stack.shape[0]
@@ -155,7 +155,7 @@ def _on_click(event: MouseEvent)->None:
 
 
 def _on_keypress(event:KeyEvent)->None:
-    global index, gamma
+    global index, gamma #pylint: disable=global-statement
     print(event)
     print(event.key)
     if event.key == 'x':

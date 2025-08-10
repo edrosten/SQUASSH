@@ -1,11 +1,14 @@
+from typing import cast
 import random
 
 import math
 import torch
 from torch import Tensor
+import matplotlib.pyplot as plt
 
 from train_dan_microtubules import LocalisationDataSetMultipleDan6, PredictReconstructionRepetitionD6
 import device
+from network import GeneralPredictReconstruction
 import train
 import matrix
 
@@ -99,7 +102,6 @@ def _main()->None:
 
     dataset_initial = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=data3d, augmentations=1, device=device.device)
     dataset_initial.set_batch_size(1)
-    torch._dynamo.config.cache_size_limit=512
 
     for i in range(1):
 
@@ -129,7 +131,7 @@ def _main()->None:
         params.schedule[0].final_lr= 0.0001
         
 
-        fast = torch.compile(net)
+        fast = cast(GeneralPredictReconstruction, torch.compile(net))
         train.retrain(fast, dataset_initial, params, f'run-{i:03}-phase_0')
 
 if __name__ == "__main__":
@@ -139,7 +141,6 @@ if __name__ == "__main__":
 
 
 def _analyze_microtuble_sim()->None:
-    import matplotlib.pyplot as plt
 
     FIGSCALE=2
     cm = FIGSCALE/2.54  # centimeters in inches
@@ -182,8 +183,8 @@ def _analyze_microtuble_sim()->None:
         state_dict = {k[10:]:v for k,v in state_dict.items()}
         net.load_state_dict(state_dict)
 
-        print(net._parameterisation.get_spacing())
-        spacing.append(net._parameterisation.get_spacing())
+        print(parameterisation.get_spacing()) 
+        spacing.append(parameterisation.get_spacing())
 
 
     plt.plot(noise_val, torch.cat(spacing).detach(), '*')

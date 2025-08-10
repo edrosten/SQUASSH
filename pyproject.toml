@@ -23,6 +23,7 @@ disable = [
     "missing-module-docstring",
     "too-many-locals",
     "too-many-statements",
+    "too-many-branches",
     "trailing-whitespace",
     "trailing-newlines",
     "too-few-public-methods",

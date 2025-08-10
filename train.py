@@ -373,7 +373,6 @@ def _train_dataset(subdir:Optional[str], param_txt:List[str],
 
                 optimizer.zero_grad()
                 
-                #FIXME what about scale2?? Currently no loss
                 reconstruction, scale, predicted_sigma, is_valid = net(batch, min_sigma_nm=fwhm_to_sigma(fwhm_t))
 
                 diff_loss = difference_loss(batch, reconstruction, is_valid)

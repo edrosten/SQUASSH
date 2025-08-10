@@ -434,6 +434,12 @@ def _load_labelled_data(files: list[str], label_file: Path)->tuple[Tensor, Metad
     return _process_labels(dataset, metadata, labels), metadata
 
 
+def load_nov_26_unlabelled()->tuple[Tensor, Metadata]:
+    '''Load just the Nov 26 dataset'''
+    ensure_cached_files_exist(_files)
+    return _load_and_reshape(_FILES_10_17_2024)
+    
+
 def load_all()->tuple[Tensor, Metadata]:
     '''Load all the data. Duh'''
     
