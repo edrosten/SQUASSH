@@ -19,10 +19,13 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Ruff
-        run: ruff check data/ train*.py
+        run: |
+          ruff check data/ train*.py
 
-	  - name: pylint
-        run: pylint check data/ train*.py
+      - name: pylint
+        run: |
+          pylint check data/ train*.py
 
-	  - name: mypy
-        run: mypy check train*.py
+      - name: mypy
+        run: |
+          mypy check train*.py
