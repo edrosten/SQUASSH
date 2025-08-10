@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Any
 import textwrap
 
 from skimage import measure
@@ -46,42 +46,44 @@ def save(filename: Union[Path, str], points: List[Union[torch.Tensor, Tuple[torc
         print("\n".join(verts), file=f)
 
 
+def make_mesh(data:torch.Tensor, weights: torch.Tensor, sigma: float, threshold:float=0.1, size:int=100, maxval: None|float=None)->tuple[Any, Any]:
+    '''Mesh a set of 3D points'''
+    hi = data.abs().max() * 1.2 if maxval is None else torch.tensor(maxval*1.0)
+
+    r = (torch.arange(0, size).to(data) / (size-1)-.5) * 2 * hi
+    xs = r.reshape(1,1,size).expand(size,size,size)
+    ys = xs.permute(0,2,1)
+    zs = xs.permute(2,0,1)
+
+    cs = torch.stack((zs, ys, xs), 3).unsqueeze(0)
+    coords = data.reshape(data.shape[0], 1, 1, 1, data.shape[1])
+
+    weights = weights.reshape(data.shape[0], 1, 1, 1)
+
+    vol = (weights*torch.exp(-((coords-cs)**2).sum(-1) / (2*sigma**2))).sum(0).float().cpu()
+
+    threshold = vol.max().item()*threshold
+    
+    verts, faces, _, _ = measure.marching_cubes(vol.numpy(), threshold) #type: ignore
+    verts = (verts / (size-1)-.5) * 2 * hi.item()
+    return verts, faces
+
 
 def save_pointcloud_as_mesh(filename: Union[Path, str], data:torch.Tensor, weights: torch.Tensor, sigma: float, threshold:float=0.1, size:int=100, colour:tuple[int,int,int,int]=(127,127,127,255), comments: str="", maxval: None|float=None)->None:
     """Mesh a set of 3D points and save as a ply file"""
 
     with open(filename, 'w', encoding='utf-8') as f:
 
-        hi = data.abs().max() * 1.2 if maxval is None else torch.tensor(maxval*1.0)
-
-        r = (torch.arange(0, size).to(data) / (size-1)-.5) * 2 * hi
-        xs = r.reshape(1,1,size).expand(size,size,size)
-        ys = xs.permute(0,2,1)
-        zs = xs.permute(2,0,1)
-    
-        cs = torch.stack((zs, ys, xs), 3).unsqueeze(0)
-        coords = data.reshape(data.shape[0], 1, 1, 1, data.shape[1])
-
-        weights = weights.reshape(data.shape[0], 1, 1, 1)
-
-        vol = (weights*torch.exp(-((coords-cs)**2).sum(-1) / (2*sigma**2))).sum(0).float().cpu()
-
         print("ply", file=f)
         print("format ascii 1.0", file=f)
         print(f"comment sigma {sigma}", file=f)
         f.flush()
         
-        threshold = vol.max().item()*threshold
-        
         try:
-            verts, faces, _, _ = measure.marching_cubes(vol.numpy(), threshold) #type: ignore
+            verts, faces = make_mesh(data, weights, sigma, threshold, size, maxval)
         except ValueError:
             return
         
-
-        verts = (verts / (size-1)-.5) * 2 * hi.item()
-
-
         header = f"""\
         element vertex {len(verts)}
         comment {comments}
