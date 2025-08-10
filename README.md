@@ -5,7 +5,7 @@
 [Try training nuclear pore complexes here!](https://colab.research.google.com/github/edrosten/squassh/blob/master/train_nupc.ipynb)
 
 
-## Prerequisites
+## Requirements for running locally
 
 This code has only been tested on Linux (Mint and Ubuntu). It will likely work
 on other systems.
@@ -13,8 +13,6 @@ on other systems.
 The code uses `torch.compile`, so you will need a version of python compatible
 with the version of torch you are using. The latest python 3.11 is well tested
 but other versions should work too. All the code is know to run on torch 2.2.1.
-Torch compile can be quite buggy and not all of the code has been fully tested
-on more recent torch versions.
 
 If you want to train you will need a GPU. The examples were all tested on a
 2080Ti (11GB RAM), so may not run on a GPU with less RAM without modification.
@@ -38,7 +36,10 @@ Then get SQUASSH with:
 git clone https://github.com/edrosten/SQUASSH
 ```
 
-## Setting up squash
+## Installing the dependencies
+
+You will need python 3.11. [Pyenv](https://github.com/pyenv/pyenv) is often a
+good choice.
 
 SQUASSH depends on a number of packages. You can install them with:
 
@@ -74,18 +75,22 @@ by running:
 ./render_marching_cubes.py -r 2 -t .2 sample_logs/1711985336-4d7cc96effb6e4740278bd39261837986110b4a2/run-000-phase_1/final_model.txt -o tmp/mesh.ply
 ```
 This will create an output file `tmp/mesh.ply`, which you can open in
-meshlab. If you open both files, you can see the mesh and axis. 
+meshlab. If you open both files, you can see the mesh and axis. It will look
+something like this:
+
+![nup-96](doc/nupc-meshlab.png)
+
 
 Further analysis will depend on the specifics of the data and what information
 you want to extract. A complete example is given in `figure_2_plot_nupc.py`. If
 you run this it will output the following files:
 ```
-hax/figure2_bates.svg
-hax/figure2_bates_3d.ply
-hax/figure2_historgram.svg
-hax/figure2_resi.svg
-hax/figure2_resi_3d.ply
-hax/figure2_z_correlation.svg
+tmp/figure2_bates.svg
+tmp/figure2_bates_3d.ply
+tmp/figure2_historgram.svg
+tmp/figure2_resi.svg
+tmp/figure2_resi_3d.ply
+tmp/figure2_z_correlation.svg
 ```
 which form the panels in figure 2 of the paper.
 
@@ -99,7 +104,6 @@ train_dan_microtubules.py
 train_legant.py
 train_nupc.py
 train_spectrin.py
-train_trichomes.py
 ```
 
 There is no configuration system. If you wish to run SQUASSH on the
@@ -108,4 +112,4 @@ There is no configuration system. If you wish to run SQUASSH on the
 
 Note that if the repository is not clean (i.e. uncommitted changes or untracked
 files), training will not execute. This ensures that every run is traceable to a
-precise and complete version of the source code.
+precise and complete version of the source code and data.

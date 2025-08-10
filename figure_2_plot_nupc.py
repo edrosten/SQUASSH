@@ -209,7 +209,7 @@ res_resi, spacing_resi, net_resi = process_data_and_plot_some_crap(resi_data3d, 
 
 pause(.1)
 pause(.1)
-plt.savefig('hax/figure2_resi.svg', format='svg')
+plt.savefig('tmp/figure2_resi.svg', format='svg')
 plt.close('all')
 pause(.1)
 
@@ -223,7 +223,7 @@ res_bates, spacing_bates, net_bates = process_data_and_plot_some_crap(bates_data
 
 pause(.1)
 pause(.1)
-plt.savefig('hax/figure2_bates.svg', format='svg')
+plt.savefig('tmp/figure2_bates.svg', format='svg')
 plt.close('all')
 pause(.1)
 
@@ -243,7 +243,7 @@ leg = plt.gca().get_legend()
 leg.legend_handles[0].set_facecolor(resi_col)
 leg.legend_handles[1].set_facecolor(bates_col)
 plt.tight_layout()
-plt.savefig('hax/figure2_z_correlation.svg', format='svg')
+plt.savefig('tmp/figure2_z_correlation.svg', format='svg')
 
 
 #of_evil = plt.gca().axis()
@@ -271,7 +271,7 @@ plt.gca().tick_params(labelsize=FS)
 plt.yticks([])
 plt.ylabel('Relative count (au)      ', fontsize=FS)
 plt.tight_layout()
-plt.savefig('hax/figure2_historgram.svg', format='svg')
+plt.savefig('tmp/figure2_historgram.svg', format='svg')
 plt.close('all')
 
 
@@ -285,7 +285,7 @@ S = scale_along_axis_and_expand_matrix(net_resi._parameterisation.get_axis().cpu
 S=S.detach()
 S.requires_grad = False
 pts = trn(S@trn(pts))
-save_ply.save_pointcloud_as_mesh("hax/figure2_resi_3d.ply", pts, weights, 2.0, 0.1, 100)
+save_ply.save_pointcloud_as_mesh("tmp/figure2_resi_3d.ply", pts, weights, 2.0, 0.1, 100)
 
 
 
@@ -298,5 +298,5 @@ S = scale_along_axis_and_expand_matrix(net_bates._parameterisation.get_axis().cp
 S=S.detach()
 S.requires_grad = False
 pts = trn(S@trn(pts))
-save_ply.save_pointcloud_as_mesh("hax/figure2_bates_3d.ply", pts, weights, 3.5, 0.2, 100)
+save_ply.save_pointcloud_as_mesh("tmp/figure2_bates_3d.ply", pts, weights, 3.5, 0.2, 100)
 
