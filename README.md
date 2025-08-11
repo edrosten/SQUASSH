@@ -8,7 +8,7 @@ The bioarXiv paper is [here](https://www.biorxiv.org/content/10.1101/2025.08.06.
 
 SQUASSH takes as input a number of patches of 3D data. The fitting process creates an output structure and an output heterogeneity distribution. As part of this, for each patch the rotation, translation and heterogeeity of that specific instance of the structural model are fitted. The data can also be controlled for quality, with patches which fall below a user-defined quality metric filtered out during the fitting process. 
 
-![nup-96](doc/network-detailed.png)
+![network](doc/network-detailed.png)
 
 ## Trying out SQUASSH on Colab
 
