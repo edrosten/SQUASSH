@@ -145,11 +145,11 @@ precise and complete version of the source code and data.
 
 On Macs, you will need to install git lfs before you start:
 
+```
 brew install git-lfsi
-
 git lfs install
-
 git-pfs pull
+```
 
 The pip install commands above should then create a suitable environment. Then you can install the specific requirements of the package:
 
