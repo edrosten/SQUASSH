@@ -1,8 +1,24 @@
 # SQUASSH
 
+SQUASSH (Simultaneous QUAntification of Structure and Structural Heterogeneity) is a method for extracting information from fluorescence microscopy datasets with multiple images of the same type of structure (below we will refer to each image of the same type of structure as a patch). SQUASSH analysis allows you to extract both the shape of the structure (as a distribution of fluorophore positions) and how it varies from observation to observation (the heterogeneity). The method is described in [this paper](https://www.biorxiv.org/content/10.1101/2025.08.06.668903v1). Please cite this paper if you are using this code in your research.
+
+
+
 ## Trying out SQUASSH on Colab
 
 [Try training nuclear pore complexes here!](https://colab.research.google.com/github/edrosten/squassh/blob/master/train_nupc.ipynb)
+
+The simplest way to try out SQUASSH is to run the Google CoLab notebook above, which will run the analysis of the [RESI](https://www.nature.com/articles/s41586-023-05925-9) nuclear pore complex data that is shown in our paper. The notebook should take about an hour to run.
+
+## Using SQUASSH analysis in your own research
+
+It may be useful to use SQUASSH analysis in your research if you want to try to get information about how a biological structure changes or distorts. There are three main steps that you will need to go through to perform your own SQUASSH analysis.
+
+1) Install a local copy of SQUASSH on your machine - see instructions below
+
+2) Pre-process your data to a suitable format. This requires extracting the patches, each of which contains one instance of the structure to be fitted.
+
+3) Design a heterogeneity parametrisation to describe the variation that you see in your sample.
 
 
 ## Requirements for running locally
