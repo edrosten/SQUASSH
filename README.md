@@ -4,6 +4,8 @@ SQUASSH (Simultaneous QUAntification of Structure and Structural Heterogeneity) 
 
 
 
+SQUASSH takes as input a number of patches of 3D data. The fitting process creates an output structure and an output heterogeneity distribution. As part of this, for each patch the rotation, translation and heterogeeity of that specific instance of the structural model are fitted. The data can also be filtered for quality, with patches which fall below a user-defined quality metric filtered out during the fitting process. 
+
 ## Trying out SQUASSH on Colab
 
 [Try training nuclear pore complexes here!](https://colab.research.google.com/github/edrosten/squassh/blob/master/train_nupc.ipynb)
@@ -20,7 +22,7 @@ It may be useful to use SQUASSH analysis in your research if you want to try to 
 
 3) Design a heterogeneity parametrisation to describe the variation that you see in your sample.
 
-If you would like assistance designing a heterogeneity parametrisation we will be happy to assist.
+A number of heterogeneity parametrisations are included in the codebase including stretch along an axis, circular harmonic distortion and structures with multiple repeats in the field of view. If you would like assistance designing a custom heterogeneity parametrisation do get in touch.
 
 ## Requirements for running locally
 
@@ -30,8 +32,6 @@ but other versions should work too. All the code is know to run on torch 2.2.1. 
 If you want to train you will need a GPU. The examples were all tested on a
 2080Ti (11GB RAM), so may not run on a GPU with less RAM without modification.
 The code will execute on a CPU, but will be too slow to be useful in most cases.
-
-
 Note, 10 series GPUs such as the 1080Ti and Quadro P400 will not work as-is,
 because GPU use relies on torch.compile in order to have reasonable batch sizes. 
 
@@ -60,6 +60,18 @@ SQUASSH depends on a number of packages. You can install them with:
 ```
 pip install -r requirements.txt
 ```
+
+# Deviating from the recommended package list
+
+If you want to use the latest version of the packages, you can use requirements.in instead of requirements.txt.
+However, note that this install does not use the version of pytorch recommended by torch developers, and 
+will take some time to install. 
+Alternatively you can install a more limited version of the packages using the commands:
+
+'''
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+pip install plyfile tiffile numpy matplotlib tqdm scikit-image PyYAML h5py pystrict
+'''
 
 ## Running SQUASSH for the first time
 
@@ -128,21 +140,22 @@ Note that if the repository is not clean (i.e. uncommitted changes or untracked
 files), training will not execute. This ensures that every run is traceable to a
 precise and complete version of the source code and data.
 
-# Deviating from the recommended package list
-
-If you wish to use the most current version available of packages instead of the recommended list, you can use the commands:
-
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
-pip install plyfile tiffile numpy matplotlib tqdm scikit-image PyYAML h5py pystrict
 
 # Other operating systems
 
 On Macs, you will need to install git lfs before you start:
 
-brew install git-lfs
+brew install git-lfsi
+
 git lfs install
+
 git-pfs pull
 
-The pip install commands above should then create a suitable environment.
+The pip install commands above should then create a suitable environment. Then you can install the specific requirements of the package:
 
-On Windows, you will need to install git before you start. Also note torch compile does not work by default and must be installed before SQUASSH will work.
+```
+pip install -r requirements.in
+```
+Or you can use the package list above.
+
+On Windows, you will need to install git before you start. Note torch compile does not work by default and must be installed before SQUASSH will work.
