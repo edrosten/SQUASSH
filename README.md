@@ -4,13 +4,15 @@ SQUASSH (Simultaneous QUAntification of Structure and Structural Heterogeneity) 
 
 
 
-SQUASSH takes as input a number of patches of 3D data. The fitting process creates an output structure and an output heterogeneity distribution. As part of this, for each patch the rotation, translation and heterogeeity of that specific instance of the structural model are fitted. The data can also be filtered for quality, with patches which fall below a user-defined quality metric filtered out during the fitting process. 
+SQUASSH takes as input a number of patches of 3D data. The fitting process creates an output structure and an output heterogeneity distribution. As part of this, for each patch the rotation, translation and heterogeeity of that specific instance of the structural model are fitted. The data can also be controlled for quality, with patches which fall below a user-defined quality metric filtered out during the fitting process. 
 
 ## Trying out SQUASSH on Colab
 
 [Try training nuclear pore complexes here!](https://colab.research.google.com/github/edrosten/squassh/blob/master/train_nupc.ipynb)
 
-The simplest way to try out SQUASSH is to run the Google CoLab notebook above, which will run the analysis of the [RESI](https://www.nature.com/articles/s41586-023-05925-9) nuclear pore complex data that is shown in our paper. The notebook should take about an hour to run.
+The simplest way to try out SQUASSH is to run the Google CoLab notebook above, which will run the analysis of the [RESI](https://www.nature.com/articles/s41586-023-05925-9) nuclear pore complex data that is shown in our paper. You will get a warning that the notebook was not authored by Google (as it is pulled from GitHub), and there will be a warning that there are uncommitted changes (to ensure all runs are traceable we generally commit before every run). The notebook should take about an hour to run.
+
+If you get an error 'File exists' at any point, this is due to rerunning a CoLab notebook that partially executed. If you disconnect and delete runtime you can run the notebook from scratch and the error should not recur.
 
 ## Using SQUASSH analysis in your own research
 
@@ -147,8 +149,8 @@ On Macs, you will need to install git lfs before you start:
 
 ```
 brew install git-lfs
-git lfs install
 git-lfs pull
+git lfs install
 ```
 
 The pip install commands above should then create a suitable environment. Then you can install the specific requirements of the package:
