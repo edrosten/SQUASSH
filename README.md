@@ -156,6 +156,10 @@ The pip install commands above should then create a suitable environment. Then y
 ```
 pip install -r requirements.in
 ```
-Or you can use the package list above.
+Or you can use the package list:
+```
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+pip install plyfile tiffile numpy matplotlib tqdm scikit-image PyYAML h5py pystrict
+```
 
 On Windows, you will need to install git before you start. Note torch compile does not work by default and must be installed before SQUASSH will work.
