@@ -49,7 +49,8 @@ analysis.
 
 1) Install a local copy of SQUASSH on your machine - see instructions below
 
-2) Pre-process your data to a suitable format. This requires extracting the patches, each of which contains one instance of the structure to be fitted.
+2) Pre-process your data to a suitable format. This requires extracting the
+patches, each of which contains one instance of the structure to be fitted.
 
 3) Design a heterogeneity parametrisation to describe the variation that you see in your sample.
 
@@ -82,7 +83,8 @@ You will need a program for viewing 3D models in PLY format.
 
 You will need [git LFS](https://github.com/git-lfs/git-lfs/tree/main) if you
 want to get the sample data and be able to run the examples. On apt
-based Linux distributions you can install it with `sudo apt install git-lfs`
+based Linux distributions you can install it with `sudo apt install git-lfs`.
+See below for instructions for macs.
 
 Then get SQUASSH with:
 ```
@@ -92,7 +94,7 @@ git clone https://github.com/edrosten/SQUASSH
 ## Installing the dependencies
 
 You will need python 3.11. [Pyenv](https://github.com/pyenv/pyenv) is often a
-good choice.
+good choice for getting specific python versions.
 
 SQUASSH depends on a number of packages. You can install them with:
 
@@ -178,7 +180,8 @@ precise and complete version of the source code and data.
 
 # Other operating systems
 
-On Macs, you will need to install git lfs before you start:
+On Macs, you will need to install git lfs. If you have
+[homebrew](https://brew.sh/), you can install it with:
 
 ```
 brew install git-lfs
@@ -192,4 +195,5 @@ The pip install commands above should then create a suitable environment. Then y
 pip install -r requirements.in
 ```
 
-On Windows, you will need to install git before you start. Note torch compile does not work by default and must be installed before SQUASSH will work.
+On Windows, you will need to install git before you start. Training requires
+`torch.compile` which does not work by default.
