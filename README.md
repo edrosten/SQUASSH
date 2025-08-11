@@ -1,6 +1,8 @@
 # SQUASSH
 
-SQUASSH (Simultaneous QUAntification of Structure and Structural Heterogeneity) is a method for extracting information from fluorescence microscopy datasets with multiple images of the same type of structure (below we will refer to each image of the same type of structure as a patch). SQUASSH analysis allows you to extract both the shape of the structure (as a distribution of fluorophore positions) and how it varies from observation to observation (the heterogeneity). The method is described in [this paper](https://www.biorxiv.org/content/10.1101/2025.08.06.668903v1). Please cite this paper if you are using this code in your research.
+SQUASSH (Simultaneous QUAntification of Structure and Structural Heterogeneity) is a method for extracting information from fluorescence microscopy datasets with multiple images of the same type of structure (below we will refer to each image of the same type of structure as a patch). SQUASSH analysis allows you to extract both the shape of the structure (as a distribution of fluorophore positions) and how it varies from observation to observation (the heterogeneity). 
+
+The bioarXiv paper is [here](https://www.biorxiv.org/content/10.1101/2025.08.06.668903v1). Please cite this paper if you are using this code in your research.
 
 
 
