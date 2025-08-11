@@ -8,6 +8,8 @@ The bioarXiv paper is [here](https://www.biorxiv.org/content/10.1101/2025.08.06.
 
 SQUASSH takes as input a number of patches of 3D data. The fitting process creates an output structure and an output heterogeneity distribution. As part of this, for each patch the rotation, translation and heterogeeity of that specific instance of the structural model are fitted. The data can also be controlled for quality, with patches which fall below a user-defined quality metric filtered out during the fitting process. 
 
+![nup-96](doc/network-detailed.png)
+
 ## Trying out SQUASSH on Colab
 
 [Try training nuclear pore complexes here!](https://colab.research.google.com/github/edrosten/squassh/blob/master/train_nupc.ipynb)
@@ -65,17 +67,12 @@ SQUASSH depends on a number of packages. You can install them with:
 pip install -r requirements.txt
 ```
 
-# Deviating from the recommended package list
-
-If you want to use the latest version of the packages, you can use requirements.in instead of requirements.txt.
-However, note that this install does not use the version of pytorch recommended by torch developers, and 
-will take some time to install. 
-Alternatively you can install a more limited version of the packages using the commands:
+If you want to use the latest version of the packages instead of the version used for the results in the paper, you can use:
 
 ```
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
-pip install plyfile tiffile numpy matplotlib tqdm scikit-image PyYAML h5py pystrict
+pip install -r requirements.in
 ```
+
 
 ## Running SQUASSH for the first time
 
