@@ -22,6 +22,9 @@ controlled for quality, with patches which fall below a user-defined quality
 metric filtered out during the fitting process. 
 
 ![network](doc/network-detailed.png)
+![mesh](doc/mesh.stl)
+
+
 
 ## Trying out SQUASSH on Colab
 
