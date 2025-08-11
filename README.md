@@ -68,10 +68,10 @@ However, note that this install does not use the version of pytorch recommended 
 will take some time to install. 
 Alternatively you can install a more limited version of the packages using the commands:
 
-'''
+```
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 pip install plyfile tiffile numpy matplotlib tqdm scikit-image PyYAML h5py pystrict
-'''
+```
 
 ## Running SQUASSH for the first time
 
