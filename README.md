@@ -12,7 +12,7 @@ on other systems.
 
 The code uses `torch.compile`, so you will need a version of python compatible
 with the version of torch you are using. The latest python 3.11 is well tested
-but other versions should work too. All the code is know to run on torch 2.2.1.
+but other versions should work too. All the code is know to run on torch 2.2.1. Newer python versions (e.g. 3.13) may not work with this version of torch.
 
 If you want to train you will need a GPU. The examples were all tested on a
 2080Ti (11GB RAM), so may not run on a GPU with less RAM without modification.
