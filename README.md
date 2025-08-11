@@ -20,19 +20,17 @@ It may be useful to use SQUASSH analysis in your research if you want to try to 
 
 3) Design a heterogeneity parametrisation to describe the variation that you see in your sample.
 
+If you would like assistance designing a heterogeneity parametrisation we will be happy to assist.
 
 ## Requirements for running locally
 
-This code has only been tested on Linux (Mint and Ubuntu). It will likely work
-on other systems.
-
-The code uses `torch.compile`, so you will need a version of python compatible
-with the version of torch you are using. The latest python 3.11 is well tested
-but other versions should work too. All the code is know to run on torch 2.2.1. Newer python versions (e.g. 3.13) may not work with this version of torch.
+This code has only been extensively tested on Linux (Mint and Ubuntu). We provide a specfic list of packages for installation for two reasons: it guarantees that the exact results shown in our paper are reproducible, and performance of our code relies on torch compile, which is not recommended to use with the latest version of python. The latest python 3.11 is well tested
+but other versions should work too. All the code is know to run on torch 2.2.1. Newer python versions (e.g. 3.13) may not work with this version of torch. 
 
 If you want to train you will need a GPU. The examples were all tested on a
 2080Ti (11GB RAM), so may not run on a GPU with less RAM without modification.
 The code will execute on a CPU, but will be too slow to be useful in most cases.
+
 
 Note, 10 series GPUs such as the 1080Ti and Quadro P400 will not work as-is,
 because GPU use relies on torch.compile in order to have reasonable batch sizes. 
@@ -129,3 +127,22 @@ There is no configuration system. If you wish to run SQUASSH on the
 Note that if the repository is not clean (i.e. uncommitted changes or untracked
 files), training will not execute. This ensures that every run is traceable to a
 precise and complete version of the source code and data.
+
+# Deviating from the recommended package list
+
+If you wish to use the most current version available of packages instead of the recommended list, you can use the commands:
+
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+pip install plyfile tiffile numpy matplotlib tqdm scikit-image PyYAML h5py pystrict
+
+# Other operating systems
+
+On Macs, you will need to install git lfs before you start:
+
+brew install git-lfs
+git lfs install
+git-pfs pull
+
+The pip install commands above should then create a suitable environment.
+
+On Windows, you will need to install git before you start. Also note torch compile does not work by default and must be installed before SQUASSH will work.
