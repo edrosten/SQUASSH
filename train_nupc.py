@@ -1,13 +1,111 @@
 from typing import cast
+from pathlib import Path
 
 import torch
+from torch import Tensor
 import torch._dynamo
+from pystrict import strict
+
 import resi_data         # noqa pylint:disable=unused-import
 import mark_bates_data   # noqa pylint:disable=unused-import
 import train
 import network
+import save_ply
 import device
+from matrix import trn, so3_6D
+import localisation_data
 from localisation_data import LocalisationDataSetMultipleDan6
+
+
+@strict
+class AxialStretchRadialGeneralExpand(network.ModelParameterisation):
+    '''Parameterise as a stretch along an axis and expansion normal to the axis.
+    The principle axis is optimized as part of the model'
+    '''
+    def __init__(self)->None:
+        super().__init__()
+        #Principal axis is the axis of stretch and shrink, which is global
+        #Stored as a 3 vector representing a direction
+        self.principal_axis = torch.nn.parameter.Parameter(torch.rand(3))
+        self._secondary_axis = torch.nn.parameter.Parameter(torch.rand(3))
+
+        self.register_buffer("max_stretch_factor_axis", torch.tensor(1.0))
+        self.register_buffer("max_stretch_factor_expand", torch.tensor(1.0))
+        self.max_stretch_factor_axis: torch.Tensor
+        self.max_stretch_factor_expand: torch.Tensor
+
+
+    def number_of_parameters(self)->int:
+        return 3
+
+    def _apply_parameterisation(self, model_points: torch.Tensor, model_intensities: torch.Tensor, parameters: torch.Tensor)->tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        '''stretch and expand'''
+        batch_size = parameters.shape[0]
+        Nv = model_points.shape[0]
+
+        
+        # In this model have 3 full expansion axes rather than coupling 2 and 3 together
+        scale1 = self.max_stretch_factor_axis**torch.tanh(parameters[:,0])
+        scale2 = self.max_stretch_factor_expand**torch.tanh(parameters[:,1])
+        scale3 = self.max_stretch_factor_expand**torch.tanh(parameters[:,2])
+
+        diag_scale = torch.stack([scale1, scale2, scale3], 1).diag_embed()
+
+        R = self.get_R().unsqueeze(0).expand(batch_size, 3, 3)
+        S = trn(R) @ diag_scale @ R
+        points = trn(S @ trn(model_points).unsqueeze(0).expand(batch_size, 3, Nv))
+        intensities = model_intensities.unsqueeze(0).expand(batch_size, Nv)
+
+        # TODO aggregate scale here. This is just compatibility with the old one
+        return points, intensities, scale1
+
+    def get_R(self)->torch.Tensor:
+        '''Get the rotation matrix'''
+        return so3_6D(torch.cat([self.principal_axis, self._secondary_axis]).unsqueeze(0)).squeeze(0)
+
+    def get_axis(self)->Tensor:
+        '''Return principal axis as unit vector'''
+        return self.principal_axis / torch.sqrt((self.principal_axis**2).sum())
+
+    def get_axis_points(self, length:torch.Tensor)->Tensor:
+        '''Get some points along the main axis for visualisation'''
+        N=100
+        axis = torch.arange(start=-N, end=N+1, device=length.device)/N * length
+        axis = axis.unsqueeze(1).expand(axis.shape[0], 3)
+        return axis * self.get_axis().unsqueeze(0).expand(axis.shape)
+
+
+    def save_ply_with_axes(self, model_points: torch.Tensor, name:Path)->None:
+        '''Dump out a visualisation'''
+
+        to_write: list[Tensor | tuple[Tensor, tuple[int, int, int]]] = [ model_points.cpu(), (self.get_axis_points((model_points**2).sum(1).max().sqrt()), (255,0,0)) ]
+        save_ply.save(name, to_write)
+
+
+def PredictReconstruction(model_size: int, nm_per_pixel_xy: float, image_size_xy:int, image_size_z: int, z_scale: float, data: list[Tensor])->tuple[network.GeneralPredictReconstruction, AxialStretchRadialGeneralExpand]:
+    '''Predict R/t etc and rerender for a 6 plane rendering, also allow prediction of "opting out"'''
+    d6render = localisation_data.RenderDan6(data)
+
+    def renderer(centres: torch.Tensor, weights: torch.Tensor, sigma_nm: torch.Tensor)->list[torch.Tensor]:
+        return [i.unsqueeze(1) for i in d6render(
+               centres=centres, 
+               weights=weights,
+               sigma_xy_nm=sigma_nm,
+               nm_per_pixel_xy=nm_per_pixel_xy,
+               z_scale=z_scale,
+               xy_size=image_size_xy,
+               z_size=image_size_z) ]
+
+    parameterisation = AxialStretchRadialGeneralExpand()
+    reconstructor=  network.GeneralPredictReconstruction(
+        model_size, 
+        image_size_xy*nm_per_pixel_xy,
+        renderer, 
+        parameterisation,
+        network.NetworkAny)
+
+    return reconstructor, parameterisation
+ 
 
 
 def _main()->None:
@@ -66,9 +164,9 @@ def _main()->None:
 
     torch.compiler.reset()
 
-    net, parameterisation =network.PredictReconstructionStretchExpandValidDan6(model_size=35, **vars(data_parameters), data=nupc3d)
-    parameterisation.max_stretch_factor_axis = 2.0
-    parameterisation.max_stretch_factor_expand = 1.0
+    net, parameterisation =PredictReconstruction(model_size=35, **vars(data_parameters), data=nupc3d)
+    parameterisation.max_stretch_factor_axis = torch.tensor(2.0)
+    parameterisation.max_stretch_factor_expand = torch.tensor(1.0)
     net.to(device.device)
     
     net._model_intensities.requires_grad=False  # pylint: disable=protected-access
@@ -88,7 +186,12 @@ def _main()->None:
     
     net.set_model(new_pts, new_weights)
     net._model_intensities.requires_grad=True  # pylint: disable=protected-access
-    parameterisation.max_stretch_factor_expand = 1.3
+
+    # principal axis ought to have optimized OK by now. It has to be turned off for 
+    # optimization at this point, otherwise with 3 generic axes, there's no 
+    # real notion of overall orientation
+    net.principal_axis.requires_grad = False
+    parameterisation.max_stretch_factor_expand = torch.tensor(1.3)
     
     torch.compiler.reset() # Otherwise it crashes on torch 2.7
     fast = cast(network.GeneralPredictReconstruction, torch.compile(net))
