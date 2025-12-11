@@ -190,7 +190,7 @@ def _main()->None:
     # principal axis ought to have optimized OK by now. It has to be turned off for 
     # optimization at this point, otherwise with 3 generic axes, there's no 
     # real notion of overall orientation
-    net.principal_axis.requires_grad = False
+    parameterisation.principal_axis.requires_grad = False
     parameterisation.max_stretch_factor_expand = torch.tensor(1.3)
     
     torch.compiler.reset() # Otherwise it crashes on torch 2.7
