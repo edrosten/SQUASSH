@@ -191,7 +191,7 @@ def _main()->None:
     # optimization at this point, otherwise with 3 generic axes, there's no 
     # real notion of overall orientation
     parameterisation.principal_axis.requires_grad = False
-    parameterisation.max_stretch_factor_expand = torch.tensor(1.3)
+    parameterisation.max_stretch_factor_expand = torch.tensor(1.7)
     
     torch.compiler.reset() # Otherwise it crashes on torch 2.7
     fast = cast(network.GeneralPredictReconstruction, torch.compile(net))
