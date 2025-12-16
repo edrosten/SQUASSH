@@ -56,8 +56,7 @@ class AxialStretchRadialGeneralExpand(network.ModelParameterisation):
         points = trn(S @ trn(model_points).unsqueeze(0).expand(batch_size, 3, Nv))
         intensities = model_intensities.unsqueeze(0).expand(batch_size, Nv)
 
-        # TODO aggregate scale here. This is just compatibility with the old one
-        return points, intensities, scale1
+        return points, intensities, torch.stack([scale1, scale2, scale3], -1)
 
     def get_R(self)->torch.Tensor:
         '''Get the rotation matrix'''
