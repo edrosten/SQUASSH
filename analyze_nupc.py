@@ -97,8 +97,16 @@ def analyze(nupc3d: list[torch.Tensor], trained_weights: dict)->torch.Tensor:
 
 nupc3d_bates = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
 #trained_weights_bates = torch.load('log/1765837449-5303f0399ec89b6b1b1a71436f5b6a9bbe78ca85/phase_1/final_net.zip', map_location=torch.device('cpu'))
-trained_weights_bates = torch.load('log/1765730982-66cba4c56ab77c0d62f9e60692b96f64de4f8cae//phase_1/final_net.zip', map_location=torch.device('cpu'))
+#trained_weights_bates = torch.load('log/1765730982-66cba4c56ab77c0d62f9e60692b96f64de4f8cae//phase_1/final_net.zip', map_location=torch.device('cpu'))
+trained_weights_bates = torch.load('log/1765923389-aa9ec76d4d2359d653ea4c6a584c3a324ead0607/phase_1/final_net.zip', map_location=torch.device('cpu'))
 scales_bates = analyze(nupc3d_bates, trained_weights_bates)
+
+
+#trained_weights_bates = torch.load('log/1765837449-5303f0399ec89b6b1b1a71436f5b6a9bbe78ca85/phase_1/final_net.zip', map_location=torch.device('cpu'))
+trained_weights_bates = torch.load('log/1765730982-66cba4c56ab77c0d62f9e60692b96f64de4f8cae//phase_1/final_net.zip', map_location=torch.device('cpu'))
+#trained_weights_bates = torch.load('log/1765923389-aa9ec76d4d2359d653ea4c6a584c3a324ead0607/phase_1/final_net.zip', map_location=torch.device('cpu'))
+scales_bates_old = analyze(nupc3d_bates, trained_weights_bates)
+
 
 nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
 trained_weights_resi = torch.load('log/1765490795-dea2d3dfafefca44b9fa5e1ea06ba6b8148439c1/phase_1/final_net.zip', map_location=torch.device('cpu'))
@@ -108,9 +116,11 @@ scales_resi = analyze(nupc3d_resi, trained_weights_resi)
 plt.clf()
 corr_resi=scipy.stats.pearsonr((scales_resi[:,1]*scales_resi[:,2])**.5, scales_resi[:,1]/scales_resi[:,2])
 corr_bates=scipy.stats.pearsonr((scales_bates[:,1]*scales_bates[:,2])**.5, scales_bates[:,1]/scales_bates[:,2])
+corr_bates_old=scipy.stats.pearsonr((scales_bates_old[:,1]*scales_bates_old[:,2])**.5, scales_bates_old[:,1]/scales_bates_old[:,2])
 
 plt.scatter(((scales_resi[:,1]*scales_resi[:,2])**.5), scales_resi[:,1]/scales_resi[:,2], label=f'RESI {corr_resi}', c='#1f77b480')
-plt.scatter(((scales_bates[:,1]*scales_bates[:,2])**.5), scales_bates[:,1]/scales_bates[:,2], label=f'Bates STORM {corr_bates}', c='#ff7f0e40')
+plt.scatter(((scales_bates[:,1]*scales_bates[:,2])**.5), scales_bates[:,1]/scales_bates[:,2], label=f'Bates STORM {corr_bates}', c='#0eff0e40')
+plt.scatter(((scales_bates_old[:,1]*scales_bates_old[:,2])**.5), scales_bates_old[:,1]/scales_bates_old[:,2], label=f'Bates STORM {corr_bates_old}', c='#ff7f0e40')
 
 
 plt.legend()
