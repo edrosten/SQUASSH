@@ -56,7 +56,8 @@ class AxialStretchRadialGeneralExpand(network.ModelParameterisation):
         points = trn(S @ trn(model_points).unsqueeze(0).expand(batch_size, 3, Nv))
         intensities = model_intensities.unsqueeze(0).expand(batch_size, Nv)
 
-        return points, intensities, torch.stack([scale1, scale2, scale3], -1)
+        # TODO aggregate scale here. This is just compatibility with the old one
+        return points, intensities, scale1
 
     def get_R(self)->torch.Tensor:
         '''Get the rotation matrix'''
@@ -108,8 +109,8 @@ def PredictReconstruction(model_size: int, nm_per_pixel_xy: float, image_size_xy
 
 
 def _main()->None:
-    #nupc3d = [t.to(device.device).half() for t in resi_data.load_3d()]
-    nupc3d = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
+    nupc3d = [t.to(device.device).half() for t in resi_data.load_3d()]
+    #nupc3d = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
 
     mult = 20
     scatter = 0.01
@@ -149,7 +150,6 @@ def _main()->None:
     params_refine = train.TrainingParameters()
     params_refine.batch_size = 10
     params_refine.validity_weight=rejection
-    params_refine.scale_weight=1e-3
 
     params_refine.schedule[0].epochs = 1000
     params_refine.schedule[0].initial_psf = 10.0*SCALE
