@@ -65,6 +65,7 @@ class TrainingParameters:
     checkpoint_every: int=10
     validity_weight: float=1.0
     normalize_by_group: bool=False
+    scale_weight: float=1e-5
 
 T = TypeVar("T")
 def _expand(iterator: Iterable[Iterable[T]])->Iterable[T]:
@@ -253,7 +254,8 @@ def _train_dataset_from_network(dataset:GeneralLocalisationDataSet, net:GeneralP
         checkpoint_every: int,
         schedule: List[TrainingSegment],
         validity_weight: float,
-        normalize_by_group: bool
+        normalize_by_group: bool,
+        scale_weight: float
         )->None:
 
     _train_dataset(subdir, param_txt,
@@ -263,7 +265,8 @@ def _train_dataset_from_network(dataset:GeneralLocalisationDataSet, net:GeneralP
         net=net,
         dataset=dataset,
         validity_weight=validity_weight,
-        normalize_by_group=normalize_by_group
+        normalize_by_group=normalize_by_group,
+        scale_weight=scale_weight
     )
         
 
@@ -299,6 +302,7 @@ def _train_dataset(subdir:Optional[str], param_txt:List[str],
         dataset: GeneralLocalisationDataSet,
         validity_weight: float,
         normalize_by_group: bool,
+        scale_weight: float
         )->None:
 
     output_dir = Path('log') / dirname
@@ -386,7 +390,7 @@ def _train_dataset(subdir:Optional[str], param_txt:List[str],
                 running_diff_loss = (running_diff_loss*(1-_DIFF_LOSS_ALPHA) + all_valid_diff_loss*_DIFF_LOSS_ALPHA).detach()
 
                 assert not running_diff_loss.requires_grad
-                loss = diff_loss + scale_loss*1e-5 + validity_loss * running_diff_loss * validity_weight
+                loss = diff_loss + scale_loss*scale_weight + validity_loss * running_diff_loss * validity_weight
 
                 loss.backward() # type: ignore
 

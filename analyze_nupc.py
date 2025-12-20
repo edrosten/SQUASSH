@@ -109,16 +109,20 @@ scales_bates_old = analyze(nupc3d_bates, trained_weights_bates)
 
 
 nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
+trained_weights_resi_2 = torch.load('log/1765997082-c67688f4c08fbb970a939d2d3c092665acc6ba76/phase_1/final_net.zip', map_location=torch.device('cpu'))
+scales_resi_2 = analyze(nupc3d_resi, trained_weights_resi_2)
 trained_weights_resi = torch.load('log/1765490795-dea2d3dfafefca44b9fa5e1ea06ba6b8148439c1/phase_1/final_net.zip', map_location=torch.device('cpu'))
 scales_resi = analyze(nupc3d_resi, trained_weights_resi)
 
 
 plt.clf()
 corr_resi=scipy.stats.pearsonr((scales_resi[:,1]*scales_resi[:,2])**.5, scales_resi[:,1]/scales_resi[:,2])
+corr_resi_2=scipy.stats.pearsonr((scales_resi_2[:,1]*scales_resi_2[:,2])**.5, scales_resi_2[:,1]/scales_resi_2[:,2])
 corr_bates=scipy.stats.pearsonr((scales_bates[:,1]*scales_bates[:,2])**.5, scales_bates[:,1]/scales_bates[:,2])
 corr_bates_old=scipy.stats.pearsonr((scales_bates_old[:,1]*scales_bates_old[:,2])**.5, scales_bates_old[:,1]/scales_bates_old[:,2])
 
 plt.scatter(((scales_resi[:,1]*scales_resi[:,2])**.5), scales_resi[:,1]/scales_resi[:,2], label=f'RESI {corr_resi}', c='#1f77b480')
+plt.scatter(((scales_resi_2[:,1]*scales_resi_2[:,2])**.5), scales_resi_2[:,1]/scales_resi_2[:,2], label=f'RESI {corr_resi_2}', c='#1f00ff80')
 plt.scatter(((scales_bates[:,1]*scales_bates[:,2])**.5), scales_bates[:,1]/scales_bates[:,2], label=f'Bates STORM {corr_bates}', c='#0eff0e40')
 plt.scatter(((scales_bates_old[:,1]*scales_bates_old[:,2])**.5), scales_bates_old[:,1]/scales_bates_old[:,2], label=f'Bates STORM {corr_bates_old}', c='#ff7f0e40')
 
