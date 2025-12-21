@@ -198,8 +198,10 @@ results_66cba4 = _analyze(nupc3d_bates, trained_weights_66cba4)
 
 trained_weights_c67688 = torch.load('log/1765997082-c67688f4c08fbb970a939d2d3c092665acc6ba76/phase_1/final_net.zip', map_location=torch.device('cpu'))
 trained_weights_ce0f1c = torch.load('log/1766269628-ce0f1c48ac3538fbcda3f5840fa64d5cbe92f612/phase_1/final_net.zip', map_location=torch.device('cpu'))
+trained_weights_fda1bd = torch.load('log/1766315401-fda1bd5a319d286cffae2e9d0f51d54aca1385c0/phase_1/final_net.zip', map_location=torch.device('cpu'))
 results_c67688 = _analyze(nupc3d_resi, trained_weights_c67688)
 results_ce0f1c = _analyze(nupc3d_resi, trained_weights_ce0f1c)
+results_fda1bd = _analyze(nupc3d_resi, trained_weights_fda1bd)
 
 plt.clf()
 #corr_X=scipy.stats.pearsonr(*results_e4b2ea[0:2])
@@ -214,6 +216,7 @@ plt.scatter(*results_66cba4[0:2], label='66cba4', c='#0eff0e40')
 plt.scatter(*results_aa9ec7[0:2], label='aa9ec7')
 plt.scatter(*results_c67688[0:2], label='c67688')
 plt.scatter(*results_ce0f1c[0:2], label='ce0f1c', c='#0eff0ef0')
+plt.scatter(*results_fda1bd[0:2], label='fda1bd')
 plt.legend()
 plt.show()
 
