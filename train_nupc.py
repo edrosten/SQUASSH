@@ -290,12 +290,26 @@ try:
     params_refine.batch_size = 10
     params_refine.validity_weight=rejection
 
-    params_refine.schedule[0].epochs = 1000
+    params_refine.schedule[0].epochs = 500
     params_refine.schedule[0].initial_psf = 10.0*SCALE
     params_refine.schedule[0].final_psf = 10.0*SCALE
     params_refine.schedule[0].psf_step_every= 300
     params_refine.schedule[0].initial_lr= 0.0002
     params_refine.schedule[0].final_lr= 0.00005
+
+    params_final = train.TrainingParameters()
+    params_final.batch_size = 10
+    params_final.validity_weight=rejection
+
+    params_final.schedule[0].epochs = 500
+    params_final.schedule[0].initial_psf = 10.0*SCALE
+    params_final.schedule[0].final_psf = 10.0*SCALE
+    params_final.schedule[0].psf_step_every= 300
+    params_final.schedule[0].initial_lr= 0.00005
+    params_final.schedule[0].final_lr= 0.00005
+
+
+
 
     dataset_refine = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=1, device=device.device)
 
@@ -352,7 +366,7 @@ try:
         p.requires_grad = True
 
     fast = net # cast(network.GeneralPredictReconstruction, torch.compile(net))
-    train.retrain(fast, dataset_refine, params_refine, 'phase_2')
+    train.retrain(fast, dataset_refine, params_final, 'phase_2')
 
 except AssertionError:
     ...
