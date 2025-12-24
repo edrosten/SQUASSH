@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Union, List, Tuple, Any
+from typing import Union, List, Tuple, Any, Generator
 import textwrap
 
 from skimage import measure
@@ -46,7 +46,7 @@ def save(filename: Union[Path, str], points: List[Union[torch.Tensor, Tuple[torc
         print("\n".join(verts), file=f)
 
 
-def make_mesh(data:torch.Tensor, weights: torch.Tensor, sigma: float, threshold:float=0.1, size:int=100, maxval: None|float=None)->tuple[Any, Any]:
+def make_mesh(data:torch.Tensor, weights: torch.Tensor, sigma: float, threshold:float=0.1, size:int=100, maxval: None|float=None, chunksize:int=1000000)->tuple[Any, Any]:
     '''Mesh a set of 3D points'''
     hi = data.abs().max() * 1.2 if maxval is None else torch.tensor(maxval*1.0)
 
@@ -56,11 +56,20 @@ def make_mesh(data:torch.Tensor, weights: torch.Tensor, sigma: float, threshold:
     zs = xs.permute(2,0,1)
 
     cs = torch.stack((zs, ys, xs), 3).unsqueeze(0)
-    coords = data.reshape(data.shape[0], 1, 1, 1, data.shape[1])
 
-    weights = weights.reshape(data.shape[0], 1, 1, 1)
+    vol = torch.zeros_like(xs)
 
-    vol = (weights*torch.exp(-((coords-cs)**2).sum(-1) / (2*sigma**2))).sum(0).float().cpu()
+    def chunks(thing:torch.Tensor, n:int)->Generator[torch.Tensor, torch.Tensor, None]:
+        """Yield successive n-sized chunks from lst."""
+        for i in range(0, len(thing), n):
+            yield thing[i:i + n]
+    
+    for data_chunk, weight_chunk in zip(chunks(data, chunksize), chunks(weights, chunksize)):
+        coords = data_chunk.reshape(data_chunk.shape[0], 1, 1, 1, data_chunk.shape[1])
+        weight_chunk = weight_chunk.reshape(data_chunk.shape[0], 1, 1, 1)
+        vol += (weight_chunk*torch.exp(-((coords-cs)**2).sum(-1) / (2*sigma**2))).sum(0)
+
+    vol=vol.float().cpu()
 
     threshold = vol.max().item()*threshold
     
@@ -69,7 +78,7 @@ def make_mesh(data:torch.Tensor, weights: torch.Tensor, sigma: float, threshold:
     return verts, faces
 
 
-def save_pointcloud_as_mesh(filename: Union[Path, str], data:torch.Tensor, weights: torch.Tensor, sigma: float, threshold:float=0.1, size:int=100, colour:tuple[int,int,int,int]=(127,127,127,255), comments: str="", maxval: None|float=None)->None:
+def save_pointcloud_as_mesh(filename: Union[Path, str], data:torch.Tensor, weights: torch.Tensor, sigma: float, threshold:float=0.1, size:int=100, colour:tuple[int,int,int,int]=(127,127,127,255), comments: str="", maxval: None|float=None, chunksize:int=1000000)->None:
     """Mesh a set of 3D points and save as a ply file"""
 
     with open(filename, 'w', encoding='utf-8') as f:
@@ -80,7 +89,7 @@ def save_pointcloud_as_mesh(filename: Union[Path, str], data:torch.Tensor, weigh
         f.flush()
         
         try:
-            verts, faces = make_mesh(data, weights, sigma, threshold, size, maxval)
+            verts, faces = make_mesh(data, weights, sigma, threshold, size, maxval, chunksize)
         except ValueError:
             return
         

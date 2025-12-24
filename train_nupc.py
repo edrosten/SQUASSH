@@ -246,10 +246,9 @@ def PredictReconstructionCrazy(model_size: int, nm_per_pixel_xy: float, image_si
  
 
 
-#def _main()->None:
-try:
-    nupc3d = [t.to(device.device).half() for t in resi_data.load_3d()]
-    #nupc3d = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
+def _main()->None:
+    #nupc3d = [t.to(device.device).half() for t in resi_data.load_3d()]
+    nupc3d = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
 
     mult = 20
     scatter = 0.01
@@ -325,7 +324,7 @@ try:
     net._model_intensities.requires_grad=False  # pylint: disable=protected-access
 
 
-    fast = net # cast(network.GeneralPredictReconstruction, torch.compile(net))
+    fast = cast(network.GeneralPredictReconstruction, torch.compile(net))
     train.retrain(fast, dataset_initial, params_initial, 'phase_0')
     
     scale = net.get_model()[0].abs().max().item()
@@ -347,7 +346,7 @@ try:
     parameterisation.max_stretch_factor_expand = torch.tensor(1.3, device=device.device)
     
     torch.compiler.reset() # Otherwise it crashes on torch 2.7
-    fast = net # cast(network.GeneralPredictReconstruction, torch.compile(net))
+    fast = cast(network.GeneralPredictReconstruction, torch.compile(net))
     train.retrain(fast, dataset_refine, params_refine, 'phase_1')
 
     
@@ -365,14 +364,9 @@ try:
     for p in parameterisation._shift_network.parameters():
         p.requires_grad = True
 
-    fast = net # cast(network.GeneralPredictReconstruction, torch.compile(net))
+    fast = cast(network.GeneralPredictReconstruction, torch.compile(net))
     train.retrain(fast, dataset_refine, params_final, 'phase_2')
 
-except AssertionError:
-    ...
-        
-#if __name__ == "__main__":
-#    _main()
-
-
+if __name__ == "__main__":
+    _main()
 
