@@ -250,7 +250,7 @@ def _main()->None:
     #nupc3d = [t.to(device.device).half() for t in resi_data.load_3d()]
     nupc3d = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
 
-    mult = 20
+    mult = 1
     scatter = 0.01
 
     SCALE=1.3
@@ -316,7 +316,7 @@ def _main()->None:
 
     torch.compiler.reset()
 
-    net, parameterisation =PredictReconstructionCrazy(model_size=35, **vars(data_parameters), data=nupc3d)
+    net, parameterisation =PredictReconstructionCrazy(model_size=32, **vars(data_parameters), data=nupc3d)
     parameterisation.max_stretch_factor_axis = torch.tensor(2.0)
     parameterisation.max_stretch_factor_expand = torch.tensor(1.0)
     net.to(device.device)
