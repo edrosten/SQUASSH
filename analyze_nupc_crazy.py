@@ -2,6 +2,7 @@ import math
 from pathlib import Path
 
 import torch
+from torch import Tensor
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -17,7 +18,7 @@ from train_nupc import PredictReconstructionCrazy
 import save_ply
 
 
-def _analyze(nupc3d: list[torch.Tensor], trained_weights: dict)->tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def _analyze(nupc3d: list[Tensor], trained_weights: dict)->tuple[Tensor, Tensor, Tensor]:
     SCALE=1.3
 
     data_parameters = train.DataParametersXYYZ(
@@ -36,7 +37,9 @@ def _analyze(nupc3d: list[torch.Tensor], trained_weights: dict)->tuple[torch.Ten
 
     net, parameterisation = PredictReconstructionCrazy(model_size=700, **vars(data_parameters), data=nupc3d)
     parameterisation.crazy=True
-    #trained_weights = { k[10:]:v for k,v in trained_weights.items()}
+    
+    if "_orig" in next(iter(trained_weights.keys())):
+        trained_weights = { k[10:]:v for k,v in trained_weights.items()}
     net.load_state_dict(trained_weights)
 
     net.to(device.device)
@@ -94,20 +97,23 @@ def _analyze(nupc3d: list[torch.Tensor], trained_weights: dict)->tuple[torch.Ten
                 plt.tight_layout()
                 plt.show()
 
-    return torch.stack(pts_list, 0), intensities, parameterisation.get_R().cpu().detach()
+    return torch.stack(pts_list, 0), intensities.squeeze(0), parameterisation.get_R().cpu().detach()
 
 
 
-def _get_stuff(components:int)->tuple[*[torch.Tensor]*5]:
-    nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
-    trained_weights_resi = torch.load('log/1766516868-66b60604c41adb3c784b829cbd0205da1b12c1cd/phase_2/final_net.zip', map_location=torch.device('cpu'))
-    results_resi_pts, results_resi_intensities, results_resi_R = _analyze(nupc3d_resi, trained_weights_resi)
+def _get_stuff(nupc3d: list[Tensor], trained_weights: dict, components:int)->tuple[Tensor,Tensor,Tensor,Tensor,Tensor]:
+    results_pts, results_intensities, results_R = _analyze(nupc3d, trained_weights)
 
-    n_data = results_resi_pts.shape[0]
-    flat_pts = results_resi_pts.reshape(n_data, -1)
+    #nupc3d_bates = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
+    #trained_weights_bates = torch.load('log/1766605809-a396351dc2c407f97a32efa35b421a9aa8d2de55/phase_2/final_net.zip', map_location=torch.device('cpu'))
+    #results_pts, results_intensities, results_resi_R = _analyze(nupc3d_bates, trained_weights_bates)
+    
+
+    n_data = results_pts.shape[0]
+    flat_pts = results_pts.reshape(n_data, -1)
 
     flat_pts_centred = flat_pts - flat_pts.mean(0).unsqueeze(0).expand(n_data, -1)
-    (_, S, Vh) = torch.linalg.svd(flat_pts_centred, full_matrices=False) # pylint: disable=not-callable
+    (_, S, Vh_vectors) = torch.linalg.svd(flat_pts_centred, full_matrices=False) # pylint: disable=not-callable
 
     # Covariances are S^2 / (n-1)
     # standard devs are S/sqrt(n-1)
@@ -116,47 +122,114 @@ def _get_stuff(components:int)->tuple[*[torch.Tensor]*5]:
 
 
     #Rot = euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ results_resi_R
-    Rot = results_resi_R
+    Rot = results_R
 
-    return centre, stddev, Vh[0:components, :], results_resi_intensities, Rot
+    return centre, stddev, Vh_vectors[0:components, :], results_intensities, Rot
     
 
-
-# 
-# plt.clf()
-# plt.subplot(1,1,1, projection="3d")
-# plt.gca().scatter(*(R @ centre.permute(1,0)))
-# plt.axis('square')
-# 
-# 
-# I=4
-# component = Vh[I].reshape_as(centre)*stddev[I]*5
-# 
-# plt.gca().scatter(*(R @ (centre+component).permute(1,0)), alpha=0.2)
-# plt.gca().scatter(*(R @ (centre-component).permute(1,0)), alpha=0.2)
-# 
+nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
+trained_weights_resi = torch.load('log/1766516868-66b60604c41adb3c784b829cbd0205da1b12c1cd/phase_2/final_net.zip', map_location=torch.device('cpu'))
 
 COMPONENTS=5
 NUM_STEPS=120
 
-sigmas=2
-
-centre, stddev, Vh, results_resi_intensities, Rot = _get_stuff(COMPONENTS)
 
 
-maxval = centre.max().item() * 1.5
+sigmas=4
 
-Path('hax/nupc_component_animation').mkdir()
+#centre_resi, stddev_resi, Vh_resi, intensities_resi, Rot_resi = 
+results_resi = tuple(i.cpu() for i in _get_stuff(nupc3d_resi, trained_weights_resi, COMPONENTS))
 
-for frame_no in tqdm(range(NUM_STEPS)):
-    position = math.sin(frame_no/NUM_STEPS * 2 * math.pi)
+
+def _matplotlib_animation(centre: Tensor, stddev: Tensor, Vh: Tensor, _: Tensor, Rot: Tensor)->None:
+    I=0
+    R = euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ Rot
+
+    top_mask = (R @ centre.permute(1,0)).permute(1,0)[:,2] > 0
     
-    for component in range(COMPONENTS):
+    for _ in range(100):
+        for frame_no in range(NUM_STEPS):
+            position = math.sin(frame_no/NUM_STEPS * 2 * math.pi)
+            
+            component = Vh[I].reshape_as(centre)*stddev[I]*sigmas*position
 
-        
+            plt.clf()
+            plt.subplot(1,2,1)
+            #plt.gca().scatter(*(R @ centre[top_mask,:].permute(1,0))[0:2,:])
+            plt.gca().scatter(*(R @ (centre+component)[top_mask,:].permute(1,0))[0:2,:], alpha=0.2) # type: ignore[misc]
+            #plt.gca().scatter(*(R @ (centre-component)[top_mask,:].permute(1,0))[0:2,:], alpha=0.2)
+            plt.axis('equal')
+            plt.axis((-60,60,-60,60))
 
-        xyz = (centre + Vh[component].reshape_as(centre)*stddev[component]*sigmas * position) @ Rot.permute(1,0)
-        save_ply.save_pointcloud_as_mesh(f"hax/nupc_component_animation/mesh-{component:02}-{frame_no:05}.ply", xyz.cuda(), results_resi_intensities.squeeze(0).cuda(), 2.0, .10, 100, maxval=maxval, chunksize=100)
+            plt.subplot(1,2,2)
+            #plt.gca().scatter(*(R @ centre[top_mask.logical_not(),:].permute(1,0))[0:2,:])
+            plt.gca().scatter(*(R @ (centre+component)[top_mask.logical_not(),:].permute(1,0))[0:2,:], alpha=0.2) # type: ignore[misc]
+            #plt.gca().scatter(*(R @ (centre-component)[top_mask.logical_not(),:].permute(1,0))[0:2,:], alpha=0.2)
+            plt.axis('equal')
+            plt.axis((-60,60,-60,60))
+
+            plt.suptitle(f'{position:0.3}')
+
+            plt.pause(0.03)
+
+def _mesh_animation(centre: Tensor, stddev: Tensor, Vh: Tensor, intensities: Tensor, Rot: Tensor)->None:
+    maxval = centre.max().item() * 1.5
+    Path('hax/nupc_component_animation').mkdir()
+    for frame_no in tqdm(range(NUM_STEPS)):
+        position = math.sin(frame_no/NUM_STEPS * 2 * math.pi)
+        for component in range(COMPONENTS):
+            xyz = (centre + Vh[component].reshape_as(centre)*stddev[component]*sigmas * position) @ Rot.permute(1,0)
+            save_ply.save_pointcloud_as_mesh(f"hax/nupc_component_animation/mesh-{component:02}-{frame_no:05}.ply", xyz.cuda(), intensities.squeeze(0).cuda(), 2.0, .10, 100, maxval=maxval, chunksize=100)
+
+
+
+
+def _pca_figure(centre: Tensor, stddev: Tensor, Vh: Tensor, intensities: Tensor, Rot: Tensor)->None:
+    R = euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ Rot
+
+    _, darkest_first = intensities.sort()
+    intensities = intensities[darkest_first]
+    centre = centre[darkest_first,:]
+    Vh = Vh.reshape(Vh.shape[0], *centre.shape)[:, darkest_first, :]
+
+
+    top_mask = (R @ centre.permute(1,0)).permute(1,0)[:,2] > 0
+    
+    N=3 
+    plt.clf()
+    for I in range(3):
+        component = Vh[I]*stddev[I]*3
+
+        plt.subplot(2,N,I+1)
+        plt.scatter(*(R @ (centre          )[top_mask,:].permute(1,0))[0:2,:], c=intensities[top_mask], alpha=0.2, cmap='Greys', edgecolors='none')  # type: ignore[misc]
+        plt.scatter(*(R @ (centre+component)[top_mask,:].permute(1,0))[0:2,:], c=intensities[top_mask], alpha=0.2, cmap='Oranges', edgecolors='none')  # type: ignore[misc]
+        plt.xlabel(f'Component {I+1}')
+        plt.axis('equal')
+        plt.axis((-65,65,-65,65))
+        for line in ['top', 'bottom', 'left', 'right']:
+            plt.gca().spines[line].set_visible(False)
+        plt.gca().set_xticks([])
+        plt.gca().set_yticks([])
+        plt.gca().xaxis.set_label_position('top')
+        if I == 0:
+            plt.ylabel('Upper ring')
+
+        plt.subplot(2,N,I+1+N)
+        plt.scatter(*(R @ (centre          )[top_mask.logical_not(),:].permute(1,0))[0:2,:], c=intensities[top_mask.logical_not()], alpha=0.2, cmap='Greys', edgecolors='none')  # type: ignore[misc]
+        plt.scatter(*(R @ (centre+component)[top_mask.logical_not(),:].permute(1,0))[0:2,:], c=intensities[top_mask.logical_not()], alpha=0.2, cmap='Oranges', edgecolors='none')  # type: ignore[misc]
+        plt.axis('equal')
+        plt.axis((-65,65,-65,65))
+        for line in ['top', 'bottom', 'left', 'right']:
+            plt.gca().spines[line].set_visible(False)
+        plt.gca().set_xticks([])
+        plt.gca().set_yticks([])
+        if I == 0:
+            plt.ylabel('Lower ring')
+    
+    plt.tight_layout()
+    plt.pause(.1)
+    plt.savefig('hax/supp_resi_pca.svg')
+_pca_figure(*results_resi)
 
 
 
