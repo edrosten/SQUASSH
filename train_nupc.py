@@ -266,6 +266,7 @@ def _main()->None:
     params_initial = train.TrainingParameters()
     params_initial.batch_size = 160 
     params_initial.validity_weight=rejection
+    params_initial.checkpoint_every=100
 
     params_initial.schedule[0].epochs = 90
     params_initial.schedule[0].initial_psf = 50*SCALE
@@ -288,6 +289,7 @@ def _main()->None:
     params_refine = train.TrainingParameters()
     params_refine.batch_size = 10
     params_refine.validity_weight=rejection
+    params_refine.checkpoint_every=100
 
     params_refine.schedule[0].epochs = 500
     params_refine.schedule[0].initial_psf = 10.0*SCALE
@@ -299,6 +301,7 @@ def _main()->None:
     params_final = train.TrainingParameters()
     params_final.batch_size = 10
     params_final.validity_weight=rejection
+    params_final.checkpoint_every=100
 
     params_final.schedule[0].epochs = 500
     params_final.schedule[0].initial_psf = 10.0*SCALE
