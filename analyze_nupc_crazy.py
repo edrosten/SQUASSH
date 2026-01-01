@@ -1,5 +1,6 @@
 import math
 from pathlib import Path
+from typing import Any
 
 import torch
 from torch import Tensor
@@ -101,13 +102,41 @@ def _analyze(nupc3d: list[Tensor], trained_weights: dict)->tuple[Tensor, Tensor,
 
 
 
-def _get_stuff(nupc3d: list[Tensor], trained_weights: dict, components:int)->tuple[Tensor,Tensor,Tensor,Tensor,Tensor]:
+def _get_stuff(nupc3d: list[Tensor], trained_weights: dict, components:int)->tuple[tuple[Tensor,Tensor,Tensor,Tensor,Tensor], Tensor]:
     results_pts, results_intensities, results_R = _analyze(nupc3d, trained_weights)
 
     #nupc3d_bates = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
     #trained_weights_bates = torch.load('log/1766605809-a396351dc2c407f97a32efa35b421a9aa8d2de55/phase_2/final_net.zip', map_location=torch.device('cpu'))
     #results_pts, results_intensities, results_resi_R = _analyze(nupc3d_bates, trained_weights_bates)
+   
+
+    # Find ring sizes
+    # swap x and z axes, so align stretch axis to z
+    R = euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ results_R
+    top_mask = (R @ results_pts.mean(0).permute(1,0)).permute(1,0)[:,2] > 0
+    bot_mask = top_mask.logical_not()
     
+    covs_list = []
+
+    for res in results_pts:
+        pts_aligned = trn(R @ trn(res))
+
+        top_2d = pts_aligned[top_mask][:,0:2]
+        top_2d = top_2d - top_2d.mean(0).unsqueeze(0).expand_as(top_2d)
+        cov_top = torch.einsum('ij,ik->jk', top_2d, top_2d) / top_2d.shape[0]
+
+
+        bot_2d = pts_aligned[bot_mask][:,0:2]
+        bot_2d = bot_2d - bot_2d.mean(0).unsqueeze(0).expand_as(bot_2d)
+        cov_bot = torch.einsum('ij,ik->jk', bot_2d, bot_2d) / bot_2d.shape[0]
+
+
+        covs_list.append([cov_top.trace().sqrt().item(), cov_bot.trace().sqrt().item()]) 
+
+
+
+
+
 
     n_data = results_pts.shape[0]
     flat_pts = results_pts.reshape(n_data, -1)
@@ -124,7 +153,7 @@ def _get_stuff(nupc3d: list[Tensor], trained_weights: dict, components:int)->tup
     #Rot = euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ results_resi_R
     Rot = results_R
 
-    return centre, stddev, Vh_vectors[0:components, :], results_intensities, Rot
+    return (centre.cpu(), stddev.cpu(), Vh_vectors[0:components, :].cpu(), results_intensities.cpu(), Rot.cpu()), torch.tensor(covs_list)
     
 
 nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
@@ -138,10 +167,10 @@ NUM_STEPS=120
 sigmas=4
 
 #centre_resi, stddev_resi, Vh_resi, intensities_resi, Rot_resi = 
-results_resi = tuple(i.cpu() for i in _get_stuff(nupc3d_resi, trained_weights_resi, COMPONENTS))
+results_resi, stds_resi = _get_stuff(nupc3d_resi, trained_weights_resi, COMPONENTS)
 
 
-def _matplotlib_animation(centre: Tensor, stddev: Tensor, Vh: Tensor, _: Tensor, Rot: Tensor)->None:
+def _matplotlib_animation(centre: Tensor, stddev: Tensor, Vh: Tensor, _: Any, Rot: Tensor)->None:
     I=0
     R = euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ Rot
 
@@ -185,6 +214,7 @@ def _mesh_animation(centre: Tensor, stddev: Tensor, Vh: Tensor, intensities: Ten
 
 
 def _pca_figure(centre: Tensor, stddev: Tensor, Vh: Tensor, intensities: Tensor, Rot: Tensor)->None:
+    # Flip X and Z axes
     R = euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ Rot
 
     _, darkest_first = intensities.sort()
