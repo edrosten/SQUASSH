@@ -19,7 +19,11 @@ from train_nupc import PredictReconstructionCrazy
 import save_ply
 
 
-def _analyze(nupc3d: list[Tensor], trained_weights: dict)->tuple[Tensor, Tensor, Tensor]:
+COMPONENTS=5
+NUM_STEPS=120
+sigmas=4
+
+def _analyze(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->tuple[Tensor, Tensor, Tensor]:
     SCALE=1.3
 
     data_parameters = train.DataParametersXYYZ(
@@ -36,7 +40,7 @@ def _analyze(nupc3d: list[Tensor], trained_weights: dict)->tuple[Tensor, Tensor,
 
     dataset = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=1, device=device.device)
 
-    net, parameterisation = PredictReconstructionCrazy(model_size=700, **vars(data_parameters), data=nupc3d)
+    net, parameterisation = PredictReconstructionCrazy(model_size=pts, extra_points=pts, **vars(data_parameters), data=nupc3d)
     parameterisation.crazy=True
     
     if "_orig" in next(iter(trained_weights.keys())):
@@ -102,8 +106,8 @@ def _analyze(nupc3d: list[Tensor], trained_weights: dict)->tuple[Tensor, Tensor,
 
 
 
-def _get_stuff(nupc3d: list[Tensor], trained_weights: dict, components:int)->tuple[tuple[Tensor,Tensor,Tensor,Tensor,Tensor], Tensor]:
-    results_pts, results_intensities, results_R = _analyze(nupc3d, trained_weights)
+def _get_stuff(nupc3d: list[Tensor], trained_weights: dict, components:int, pts:int=700)->tuple[tuple[Tensor,Tensor,Tensor,Tensor,Tensor], Tensor]:
+    results_pts, results_intensities, results_R = _analyze(nupc3d, trained_weights, pts)
 
     #nupc3d_bates = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
     #trained_weights_bates = torch.load('log/1766605809-a396351dc2c407f97a32efa35b421a9aa8d2de55/phase_2/final_net.zip', map_location=torch.device('cpu'))
@@ -131,7 +135,8 @@ def _get_stuff(nupc3d: list[Tensor], trained_weights: dict, components:int)->tup
         cov_bot = torch.einsum('ij,ik->jk', bot_2d, bot_2d) / bot_2d.shape[0]
 
 
-        covs_list.append([cov_top.trace().sqrt().item(), cov_bot.trace().sqrt().item()]) 
+        #covs_list.append([cov_top.trace().sqrt().item(), cov_bot.trace().sqrt().item()]) 
+        covs_list.append(torch.stack([cov_top, cov_bot], 0))
 
 
 
@@ -153,21 +158,9 @@ def _get_stuff(nupc3d: list[Tensor], trained_weights: dict, components:int)->tup
     #Rot = euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ results_resi_R
     Rot = results_R
 
-    return (centre.cpu(), stddev.cpu(), Vh_vectors[0:components, :].cpu(), results_intensities.cpu(), Rot.cpu()), torch.tensor(covs_list)
+    return (centre.cpu(), stddev.cpu(), Vh_vectors[0:components, :].cpu(), results_intensities.cpu(), Rot.cpu()), torch.stack(covs_list,0)
     
 
-nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
-trained_weights_resi = torch.load('log/1766516868-66b60604c41adb3c784b829cbd0205da1b12c1cd/phase_2/final_net.zip', map_location=torch.device('cpu'))
-
-COMPONENTS=5
-NUM_STEPS=120
-
-
-
-sigmas=4
-
-#centre_resi, stddev_resi, Vh_resi, intensities_resi, Rot_resi = 
-results_resi, stds_resi = _get_stuff(nupc3d_resi, trained_weights_resi, COMPONENTS)
 
 
 def _matplotlib_animation(centre: Tensor, stddev: Tensor, Vh: Tensor, _: Any, Rot: Tensor)->None:
@@ -226,13 +219,14 @@ def _pca_figure(centre: Tensor, stddev: Tensor, Vh: Tensor, intensities: Tensor,
     top_mask = (R @ centre.permute(1,0)).permute(1,0)[:,2] > 0
     
     N=3 
+    alpha=1.0
     plt.clf()
     for I in range(3):
         component = Vh[I]*stddev[I]*3
 
         plt.subplot(2,N,I+1)
-        plt.scatter(*(R @ (centre          )[top_mask,:].permute(1,0))[0:2,:], c=intensities[top_mask], alpha=0.2, cmap='Greys', edgecolors='none')  # type: ignore[misc]
-        plt.scatter(*(R @ (centre+component)[top_mask,:].permute(1,0))[0:2,:], c=intensities[top_mask], alpha=0.2, cmap='Oranges', edgecolors='none')  # type: ignore[misc]
+        plt.scatter(*(R @ (centre          )[top_mask,:].permute(1,0))[0:2,:], c=intensities[top_mask], alpha=alpha, cmap='Greys', edgecolors='none')  # type: ignore[misc]
+        plt.scatter(*(R @ (centre+component)[top_mask,:].permute(1,0))[0:2,:], c=intensities[top_mask], alpha=alpha, cmap='Oranges', edgecolors='none')  # type: ignore[misc]
         plt.xlabel(f'Component {I+1}')
         plt.axis('equal')
         plt.axis((-65,65,-65,65))
@@ -245,8 +239,8 @@ def _pca_figure(centre: Tensor, stddev: Tensor, Vh: Tensor, intensities: Tensor,
             plt.ylabel('Upper ring')
 
         plt.subplot(2,N,I+1+N)
-        plt.scatter(*(R @ (centre          )[top_mask.logical_not(),:].permute(1,0))[0:2,:], c=intensities[top_mask.logical_not()], alpha=0.2, cmap='Greys', edgecolors='none')  # type: ignore[misc]
-        plt.scatter(*(R @ (centre+component)[top_mask.logical_not(),:].permute(1,0))[0:2,:], c=intensities[top_mask.logical_not()], alpha=0.2, cmap='Oranges', edgecolors='none')  # type: ignore[misc]
+        plt.scatter(*(R @ (centre          )[top_mask.logical_not(),:].permute(1,0))[0:2,:], c=intensities[top_mask.logical_not()], alpha=alpha, cmap='Greys', edgecolors='none')  # type: ignore[misc]
+        plt.scatter(*(R @ (centre+component)[top_mask.logical_not(),:].permute(1,0))[0:2,:], c=intensities[top_mask.logical_not()], alpha=alpha, cmap='Oranges', edgecolors='none')  # type: ignore[misc]
         plt.axis('equal')
         plt.axis((-65,65,-65,65))
         for line in ['top', 'bottom', 'left', 'right']:
@@ -259,7 +253,55 @@ def _pca_figure(centre: Tensor, stddev: Tensor, Vh: Tensor, intensities: Tensor,
     plt.tight_layout()
     plt.pause(.1)
     plt.savefig('hax/supp_resi_pca.svg')
+
+
+
+def _print_stats(stds:torch.Tensor, ratio: torch.Tensor)->None:
+    print("Size top / bottom ± at 1σ")
+    for i in [0,1]:
+        print(f"{stds[:,i].mean().item():0.4} ± {(stds[:,i].var()/stds.shape[0]).sqrt().item():0.2}   ", end="")
+    print("\n")
+
+    print("Aspect ratio top/bottom")
+    for i in [0,1]:
+        print(f"{ratio[:,i].mean().item():0.4} ± {(ratio[:,i].var()/ratio.shape[0]).sqrt().item():0.2}   ", end="")
+
+def _std_and_ratio(covs: torch.Tensor)->tuple[torch.Tensor, torch.Tensor]:
+    # Std dev (variance) as trace of covariance matrix, equivlaent to RMS radius
+    stds = covs.diagonal(offset=0, dim1=-1, dim2=-2).sum(2).sqrt()
+
+    principal_axes=torch.linalg.eigvalsh(covs).sqrt() # pylint: disable=not-callable
+    ratios = principal_axes[...,0]/principal_axes[...,1]
+    return stds, ratios
+
+nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
+trained_weights_resi = torch.load('log/1766516868-66b60604c41adb3c784b829cbd0205da1b12c1cd/phase_2/final_net.zip', map_location=torch.device('cpu'))
+results_resi, covs_resi = _get_stuff(nupc3d_resi, trained_weights_resi, COMPONENTS)
+
+
+
+# 32 point model!
+#trained_weights_resi = torch.load('log/1767349910-2b9779e492b7d46a5a112272842a97c42a44a2f8/phase_2/final_net.zip', map_location=torch.device('cpu'))
+#results_resi, covs_resi = _get_stuff(nupc3d_resi, trained_weights_resi, COMPONENTS, 32)
+
+
+std_ratio_resi = _std_and_ratio(covs_resi)
+print("RESI data")
+print("---------")
+_print_stats(*std_ratio_resi)
+
 _pca_figure(*results_resi)
 
+assert 0
+
+nupc3d_bates = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
+trained_weights_bates = torch.load('log/1766605809-a396351dc2c407f97a32efa35b421a9aa8d2de55/phase_2/final_net.zip', map_location=torch.device('cpu'))
+results_bates, covs_bates = _get_stuff(nupc3d_bates, trained_weights_bates, COMPONENTS)
+
+
+std_ratio_bates = _std_and_ratio(covs_bates)
+print("Bates data")
+print("----------")
+_print_stats(*std_ratio_bates)
 
 
