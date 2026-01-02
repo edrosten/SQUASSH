@@ -220,7 +220,7 @@ def PredictReconstruction(model_size: int, nm_per_pixel_xy: float, image_size_xy
 
 
 
-def PredictReconstructionCrazy(model_size: int, nm_per_pixel_xy: float, image_size_xy:int, image_size_z: int, z_scale: float, data: list[Tensor])->tuple[network.GeneralPredictReconstruction, AxialStretchRadialGeneralExpandCrazy]:
+def PredictReconstructionCrazy(model_size: int, extra_points: int, nm_per_pixel_xy: float, image_size_xy:int, image_size_z: int, z_scale: float, data: list[Tensor])->tuple[network.GeneralPredictReconstruction, AxialStretchRadialGeneralExpandCrazy]:
     '''Predict R/t etc and rerender for a 6 plane rendering, also allow prediction of "opting out"'''
     d6render = localisation_data.RenderDan6(data)
 
@@ -234,7 +234,7 @@ def PredictReconstructionCrazy(model_size: int, nm_per_pixel_xy: float, image_si
                xy_size=image_size_xy,
                z_size=image_size_z) ]
 
-    parameterisation = AxialStretchRadialGeneralExpandCrazy(700) # LOL
+    parameterisation = AxialStretchRadialGeneralExpandCrazy(extra_points) # LOL
     reconstructor=  network.GeneralPredictReconstruction(
         model_size, 
         image_size_xy*nm_per_pixel_xy,
@@ -250,6 +250,7 @@ def _main()->None:
     #nupc3d = [t.to(device.device).half() for t in resi_data.load_3d()]
     nupc3d = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
 
+    initial_points=32
     mult = 1
     scatter = 0.01
 
@@ -319,7 +320,7 @@ def _main()->None:
 
     torch.compiler.reset()
 
-    net, parameterisation =PredictReconstructionCrazy(model_size=32, **vars(data_parameters), data=nupc3d)
+    net, parameterisation =PredictReconstructionCrazy(model_size=initial_points, extra_points=initial_points*mult, **vars(data_parameters), data=nupc3d)
     parameterisation.max_stretch_factor_axis = torch.tensor(2.0)
     parameterisation.max_stretch_factor_expand = torch.tensor(1.0)
     net.to(device.device)
