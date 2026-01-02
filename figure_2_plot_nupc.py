@@ -16,9 +16,10 @@ from matplotlib.pyplot import scatter, axis, plot, text, colorbar, gcf, sca, ims
 
 import resi_data
 import mark_bates_data
-from matrix import trn, scale_along_axis_and_expand_matrix
+from matrix import trn, scale_along_axis_and_expand_matrix, euler, so3_6D
 import network
 import device
+import render
 import save_ply
 from train import fwhm_to_sigma, DataParametersXYYZ
 from localisation_data import LocalisationDataSetMultipleDan6
@@ -28,7 +29,7 @@ FIGSCALE=2
 cm = FIGSCALE/2.54  # centimeters in inches, plus an overall figure scaling
 FS=7*FIGSCALE
 
-def process_data_and_plot_some_crap(data3d: List[Tensor], means: List[Tensor], directory: Path)->tuple[Tensor, float]:
+def process_data_and_plot_some_crap(data3d: List[Tensor], means: List[Tensor], directory: Path)->tuple[Tensor, float, network.GeneralPredictReconstruction]:
     '''lol'''
     nupc3d = [t.to(device.device).half() for t in data3d]
     
@@ -240,8 +241,8 @@ plt.ylabel('Spacing (nm)', fontsize=FS)
 plt.gca().tick_params(labelsize=FS)
 plt.gca().legend(['RESI', '4Pi STORM'], loc='lower right', fontsize=FS)
 leg = plt.gca().get_legend()
-leg.legend_handles[0].set_facecolor(resi_col)
-leg.legend_handles[1].set_facecolor(bates_col)
+leg.legend_handles[0].set_facecolor(resi_col) # type: ignore[union-attr]
+leg.legend_handles[1].set_facecolor(bates_col) # type: ignore[union-attr]
 plt.tight_layout()
 plt.savefig('tmp/figure2_z_correlation.svg', format='svg')
 
@@ -275,28 +276,48 @@ plt.savefig('tmp/figure2_historgram.svg', format='svg')
 plt.close('all')
 
 
-# Now scale the models by their size and save as ply files
-pts, weights = (i.detach().cpu() for i in net_resi.get_model())
-pts.requires_grad = False
-weights.requires_grad = False
-spacing = res_resi[:,3].median().unsqueeze(0).detach().cpu().float()
-expand = res_resi[:,4].median().unsqueeze(0).detach().cpu().float()
-S = scale_along_axis_and_expand_matrix(net_resi._parameterisation.get_axis().cpu(), spacing, expand).squeeze(0)
-S=S.detach()
-S.requires_grad = False
-pts = trn(S@trn(pts))
-save_ply.save_pointcloud_as_mesh("tmp/figure2_resi_3d.ply", pts, weights, 2.0, 0.1, 100)
+# Now scale the models by their size and save as ply files, and also split heatmaps
+def _save_renderings(net: network.GeneralPredictReconstruction, res: torch.Tensor, name: str)->None:
+    pts, weights = (i.detach().cpu() for i in net.get_model())
+    pts.requires_grad = False
+    weights.requires_grad = False
+    spacing = res[:,3].median().unsqueeze(0).detach().cpu().float()
+    expand = res[:,4].median().unsqueeze(0).detach().cpu().float()
+    S = scale_along_axis_and_expand_matrix(net._parameterisation.get_axis().cpu(), spacing, expand).squeeze(0) # pylint: disable=protected-access
+    S=S.detach()
+    S.requires_grad = False
+    pts = trn(S@trn(pts))
+    save_ply.save_pointcloud_as_mesh(f"tmp/figure2_{name}_3d.ply", pts, weights, 2.0, 0.1, 100)
 
 
+    zx_flip=euler(torch.tensor([1*torch.pi/2]), 'y')[0]
+    rot = zx_flip @ so3_6D(torch.cat([net._parameterisation.get_axis().detach().cpu(), torch.tensor([1., 1, 1])]).unsqueeze(0))[0] # pylint: disable=protected-access
+    pts_aligned = trn(rot @ trn(pts))
+    top_mask = pts_aligned[:,2]>0
 
-pts, weights = (i.detach().cpu() for i in net_bates.get_model())
-pts.requires_grad = False
-weights.requires_grad = False
-spacing = res_bates[:,3].median().unsqueeze(0).detach().cpu().float()
-expand = res_bates[:,4].median().unsqueeze(0).detach().cpu().float()
-S = scale_along_axis_and_expand_matrix(net_bates._parameterisation.get_axis().cpu(), spacing, expand).squeeze(0)
-S=S.detach()
-S.requires_grad = False
-pts = trn(S@trn(pts))
-save_ply.save_pointcloud_as_mesh("tmp/figure2_bates_3d.ply", pts, weights, 3.5, 0.2, 100)
+
+    top = render.render_batch_weights(pts_aligned[top_mask].unsqueeze(0)[...,0:2], torch.tensor([2.0]), weights[top_mask].unsqueeze(0), 0.25, 600)[0] 
+    bot = render.render_batch_weights(pts_aligned[top_mask.logical_not()].unsqueeze(0)[...,0:2], torch.tensor([2.0]), weights[top_mask.logical_not()].unsqueeze(0), 0.25, 600)[0]
+
+    ratio = weights[top_mask].sum().item()/weights[top_mask.logical_not()].sum().item()
+
+    plt.clf()
+    plt.subplot(1,2,1)
+    plt.imshow(top, cmap='inferno')
+    plt.axis('off')
+    plt.title(f'z>0, relative intensity={ratio:0.3}')
+    plt.subplot(1,2,2)
+    plt.imshow(bot, cmap='inferno')
+    plt.title('z<0, relative intensity=1.0')
+    plt.axis('off')
+    plt.tight_layout()
+    plt.pause(.1)
+    plt.savefig('tmp/figure2_{name}_supp_heatmap.svg')
+    #plt.subplot(1,3,3, projection='3d')
+    #plt.gca().scatter(*trn(pts_aligned))
+    #plt.axis('square')
+
+
+_save_renderings(net_resi, res_resi, 'resi')
+_save_renderings(net_bates, res_bates, 'bates')
 
