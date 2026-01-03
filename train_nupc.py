@@ -284,7 +284,7 @@ def _main()->None:
     params_initial.schedule[1].initial_lr= 0.0001
     params_initial.schedule[1].final_lr= 0.0001
 
-    dataset_initial = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=1, device=device.device)
+    dataset_initial = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=8, device=device.device)
 
 
     params_refine = train.TrainingParameters()
