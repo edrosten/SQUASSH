@@ -13,33 +13,30 @@ import resi_data         # noqa pylint:disable=unused-import
 import mark_bates_data   # noqa pylint:disable=unused-import
 import train
 import device
+from network import GeneralPredictReconstruction
 from matrix import trn, euler
 from localisation_data import LocalisationDataSetMultipleDan6
-from train_nupc import PredictReconstructionCrazy
+from train_nupc import PredictReconstructionCrazy, AxialStretchRadialGeneralExpandCrazy
 import save_ply
 
 
 COMPONENTS=5
 NUM_STEPS=120
 sigmas=4
+SCALE=1.3
 
-def _analyze(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->tuple[Tensor, Tensor, Tensor]:
-    SCALE=1.3
+data_parameters = train.DataParametersXYYZ(
+    image_size_xy = 64,
+    image_size_z = 32,
+    nm_per_pixel_xy = 3*SCALE,
+    z_scale = 2
+)
 
-    data_parameters = train.DataParametersXYYZ(
-        image_size_xy = 64,
-        image_size_z = 32,
-        nm_per_pixel_xy = 3*SCALE,
-        z_scale = 2
-    )
+final_fwhm = SCALE * 10.0
 
-    final_fwhm = SCALE * 10.0
 
-    final_sigma = train.fwhm_to_sigma(final_fwhm)
-    final_sigma_t = torch.tensor(final_sigma)
 
-    dataset = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=1, device=device.device)
-
+def _load_net(nupc3d: list[Tensor], trained_weights: dict, pts:int)->tuple[GeneralPredictReconstruction, AxialStretchRadialGeneralExpandCrazy]:
     net, parameterisation = PredictReconstructionCrazy(model_size=pts, extra_points=pts, **vars(data_parameters), data=nupc3d)
     parameterisation.crazy=True
     
@@ -47,9 +44,23 @@ def _analyze(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->tuple[Te
         trained_weights = { k[10:]:v for k,v in trained_weights.items()}
     net.load_state_dict(trained_weights)
 
-    net.to(device.device)
     net.eval()
-            
+    for i in net.parameters():
+        i.requires_grad=False
+        
+    return net, parameterisation
+
+
+def _analyze(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->tuple[Tensor, Tensor, Tensor]:
+
+    final_sigma = train.fwhm_to_sigma(final_fwhm)
+    final_sigma_t = torch.tensor(final_sigma)
+
+    dataset = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=1, device=device.device)
+
+    net, parameterisation = _load_net(nupc3d, trained_weights, pts)
+    net.to(device.device)
+
     loader = DataLoader(dataset, batch_size=1, shuffle=False)
     dataset.set_sigma(final_sigma)
 
@@ -106,7 +117,7 @@ def _analyze(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->tuple[Te
 
 
 
-def _get_stuff(nupc3d: list[Tensor], trained_weights: dict, components:int, pts:int=700)->tuple[tuple[Tensor,Tensor,Tensor,Tensor,Tensor], Tensor]:
+def _get_stuff(nupc3d: list[Tensor], trained_weights: dict, components:int, pts:int=700)->tuple[tuple[Tensor,Tensor,Tensor,Tensor,Tensor], Tensor, Tensor]:
     results_pts, results_intensities, results_R = _analyze(nupc3d, trained_weights, pts)
 
     #nupc3d_bates = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
@@ -158,7 +169,7 @@ def _get_stuff(nupc3d: list[Tensor], trained_weights: dict, components:int, pts:
     #Rot = euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ results_resi_R
     Rot = results_R
 
-    return (centre.cpu(), stddev.cpu(), Vh_vectors[0:components, :].cpu(), results_intensities.cpu(), Rot.cpu()), torch.stack(covs_list,0)
+    return (centre.cpu(), stddev.cpu(), Vh_vectors[0:components, :].cpu(), results_intensities.cpu(), Rot.cpu()), torch.stack(covs_list,0), results_pts
     
 
 
@@ -274,15 +285,21 @@ def _std_and_ratio(covs: torch.Tensor)->tuple[torch.Tensor, torch.Tensor]:
     ratios = principal_axes[...,0]/principal_axes[...,1]
     return stds, ratios
 
+
+
+
+torch.no_grad()
+
 nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
-trained_weights_resi = torch.load('log/1766516868-66b60604c41adb3c784b829cbd0205da1b12c1cd/phase_2/final_net.zip', map_location=torch.device('cpu'))
-results_resi, covs_resi = _get_stuff(nupc3d_resi, trained_weights_resi, COMPONENTS)
+#trained_weights_resi = torch.load('log/1766516868-66b60604c41adb3c784b829cbd0205da1b12c1cd/phase_2/final_net.zip', map_location=torch.device('cpu'))
+#results_resi, covs_resi = _get_stuff(nupc3d_resi, trained_weights_resi, COMPONENTS)
 
 
 
 # 32 point model!
-#trained_weights_resi = torch.load('log/1767349910-2b9779e492b7d46a5a112272842a97c42a44a2f8/phase_2/final_net.zip', map_location=torch.device('cpu'))
-#results_resi, covs_resi = _get_stuff(nupc3d_resi, trained_weights_resi, COMPONENTS, 32)
+trained_weights_resi = torch.load('log/1767374101-f20b13220750b8921f8558d41c7a17b326a77849/phase_2/final_net.zip', map_location=torch.device('cpu'))
+results_resi, covs_resi, pts_resi = _get_stuff(nupc3d_resi, trained_weights_resi, COMPONENTS, 32)
+
 
 
 std_ratio_resi = _std_and_ratio(covs_resi)
@@ -292,16 +309,64 @@ _print_stats(*std_ratio_resi)
 
 _pca_figure(*results_resi)
 
-assert 0
-
-nupc3d_bates = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
-trained_weights_bates = torch.load('log/1766605809-a396351dc2c407f97a32efa35b421a9aa8d2de55/phase_2/final_net.zip', map_location=torch.device('cpu'))
-results_bates, covs_bates = _get_stuff(nupc3d_bates, trained_weights_bates, COMPONENTS)
 
 
-std_ratio_bates = _std_and_ratio(covs_bates)
-print("Bates data")
-print("----------")
-_print_stats(*std_ratio_bates)
+#nupc3d_bates = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l] # type: ignore[unreachable]
+#trained_weights_bates = torch.load('log/1766605809-a396351dc2c407f97a32efa35b421a9aa8d2de55/phase_2/final_net.zip', map_location=torch.device('cpu'))
+#results_bates, covs_bates = _get_stuff(nupc3d_bates, trained_weights_bates, COMPONENTS)
+#
+#
+#std_ratio_bates = _std_and_ratio(covs_bates)
+#print("Bates data")
+#print("----------")
+#_print_stats(*std_ratio_bates)
+#
 
+
+net_resi = _load_net(nupc3d_resi, trained_weights_resi, 32)
+
+
+
+def _nn_graph(pts: Tensor)->tuple[Tensor, Tensor]:
+    # Simple quadratical method
+    npts = pts.shape[0]
+    
+    pairwise_distance = (pts.unsqueeze(0).expand(npts, *pts.shape) - pts.unsqueeze(1).expand(npts, *pts.shape)).pow(2).sum(-1).sqrt() + torch.eye(npts)*1e10
+    
+    min_dist, index_of_closest = pairwise_distance.min(1)
+
+    good_points = min_dist < 15.0
+    
+    #plt.clf() 
+    #plt.subplot(1,1,1,projection='3d')
+    #plt.gca().scatter(*pts.permute(1,0))
+    #for i in torch.arange(npts)[good_points]:
+    #    p1 = pts[i] 
+    #    p2 = pts[index_of_closest[i]]
+    #    ps = torch.stack([p1, (p1+p2)/2, p2], 0)
+    #    plt.gca().plot(*ps.permute(1,0)[:,0:2], c=plt.cm.winter(0.0)) # pylint: disable = no-member
+    #    plt.gca().plot(*ps.permute(1,0)[:,1:3], c=plt.cm.winter(1.0)) # pylint: disable = no-member
+
+
+    return index_of_closest, good_points
+
+
+
+index_closest, good_mask, md = _nn_graph(net_resi[0].get_model()[0])
+
+
+
+pts1 = net_resi[0].get_model()[0].cpu()
+pts2 = pts_resi[0]
+
+plt.clf()
+plt.subplot(1,1,1,projection='3d')
+plt.gca().scatter(*pts1.permute(1,0))
+plt.gca().scatter(*pts2.permute(1,0))
+
+for p1, p2 in zip(pts1, pts2):
+    ps = torch.stack([p1, (p1+p2)/2, p2], 0)
+    ps = torch.stack([p1, (p1+p2)/2, p2], 0)
+    plt.gca().plot(*ps.permute(1,0)[:,0:2], c=plt.cm.winter(0.0)) # pylint: disable = no-member
+    plt.gca().plot(*ps.permute(1,0)[:,1:3], c=plt.cm.winter(1.0)) # pylint: disable = no-member
 

@@ -355,7 +355,7 @@ def _main()->None:
 
     
     torch.compiler.reset() # Otherwise it crashes on torch 2.7
-    parameterisation.shift_amount_nm = torch.tensor(20)
+    parameterisation.shift_amount_nm = torch.tensor(7)
     parameterisation.crazy=True
     
     # Turn off gradients for everything
