@@ -2,6 +2,7 @@ import math
 from pathlib import Path
 from typing import Any
 
+import scipy
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
@@ -22,7 +23,7 @@ import save_ply
 
 COMPONENTS=5
 NUM_STEPS=120
-sigmas=4
+sigmas=2
 SCALE=1.3
 
 data_parameters = train.DataParametersXYYZ(
@@ -239,7 +240,7 @@ def _pca_figure(centre: Tensor, stddev: Tensor, Vh: Tensor, intensities: Tensor,
         plt.scatter(*(R @ (centre          )[top_mask,:].permute(1,0))[0:2,:], c=intensities[top_mask], alpha=alpha, cmap='Greys', edgecolors='none')  # type: ignore[misc]
         plt.scatter(*(R @ (centre+component)[top_mask,:].permute(1,0))[0:2,:], c=intensities[top_mask], alpha=alpha, cmap='Oranges', edgecolors='none')  # type: ignore[misc]
         plt.xlabel(f'Component {I+1}')
-        plt.axis('equal')
+        plt.axis('square')
         plt.axis((-65,65,-65,65))
         for line in ['top', 'bottom', 'left', 'right']:
             plt.gca().spines[line].set_visible(False)
@@ -252,7 +253,7 @@ def _pca_figure(centre: Tensor, stddev: Tensor, Vh: Tensor, intensities: Tensor,
         plt.subplot(2,N,I+1+N)
         plt.scatter(*(R @ (centre          )[top_mask.logical_not(),:].permute(1,0))[0:2,:], c=intensities[top_mask.logical_not()], alpha=alpha, cmap='Greys', edgecolors='none')  # type: ignore[misc]
         plt.scatter(*(R @ (centre+component)[top_mask.logical_not(),:].permute(1,0))[0:2,:], c=intensities[top_mask.logical_not()], alpha=alpha, cmap='Oranges', edgecolors='none')  # type: ignore[misc]
-        plt.axis('equal')
+        plt.axis('square')
         plt.axis((-65,65,-65,65))
         for line in ['top', 'bottom', 'left', 'right']:
             plt.gca().spines[line].set_visible(False)
@@ -279,7 +280,7 @@ def _print_stats(stds:torch.Tensor, ratio: torch.Tensor)->None:
 
 def _std_and_ratio(covs: torch.Tensor)->tuple[torch.Tensor, torch.Tensor]:
     # Std dev (variance) as trace of covariance matrix, equivlaent to RMS radius
-    stds = covs.diagonal(offset=0, dim1=-1, dim2=-2).sum(2).sqrt()
+    stds = covs.diagonal(offset=0, dim1=-1, dim2=-2).sum(-1).sqrt()
 
     principal_axes=torch.linalg.eigvalsh(covs).sqrt() # pylint: disable=not-callable
     ratios = principal_axes[...,0]/principal_axes[...,1]
@@ -297,7 +298,7 @@ nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
 
 
 # 32 point model!
-trained_weights_resi = torch.load('log/1767374101-f20b13220750b8921f8558d41c7a17b326a77849/phase_2/final_net.zip', map_location=torch.device('cpu'))
+trained_weights_resi = torch.load('log/1767449867-0b3ce320f9213553e0b7d942d407268e8c3db4a4/phase_2/final_net.zip', map_location=torch.device('cpu'))
 results_resi, covs_resi, pts_resi = _get_stuff(nupc3d_resi, trained_weights_resi, COMPONENTS, 32)
 
 
@@ -335,38 +336,82 @@ def _nn_graph(pts: Tensor)->tuple[Tensor, Tensor]:
     
     min_dist, index_of_closest = pairwise_distance.min(1)
 
-    good_points = min_dist < 15.0
+    good_points = min_dist < 25.0
     
-    #plt.clf() 
-    #plt.subplot(1,1,1,projection='3d')
-    #plt.gca().scatter(*pts.permute(1,0))
-    #for i in torch.arange(npts)[good_points]:
-    #    p1 = pts[i] 
-    #    p2 = pts[index_of_closest[i]]
-    #    ps = torch.stack([p1, (p1+p2)/2, p2], 0)
-    #    plt.gca().plot(*ps.permute(1,0)[:,0:2], c=plt.cm.winter(0.0)) # pylint: disable = no-member
-    #    plt.gca().plot(*ps.permute(1,0)[:,1:3], c=plt.cm.winter(1.0)) # pylint: disable = no-member
+    plt.clf() 
+    plt.subplot(1,1,1,projection='3d')
+    plt.gca().scatter(*pts.permute(1,0))
+    for i in torch.arange(npts)[good_points]:
+        p1 = pts[i] 
+        p2 = pts[index_of_closest[i]]
+        ps = torch.stack([p1, (p1+p2)/2, p2], 0)
+        plt.gca().plot(*ps.permute(1,0)[:,0:2], c=plt.cm.winter(0.0)) # pylint: disable = no-member
+        plt.gca().plot(*ps.permute(1,0)[:,1:3], c=plt.cm.winter(1.0)) # pylint: disable = no-member
 
 
     return index_of_closest, good_points
 
 
 
-index_closest, good_mask, md = _nn_graph(net_resi[0].get_model()[0])
+index_closest, good_mask = _nn_graph(net_resi[0].get_model()[0])
+
+assert good_mask.all(), "Honestly this has not been tested with slightly incomplete models"
+
+
+pts = pts_resi
+closest = pts[:, index_closest, :]
+
+
+distances = (pts-closest).pow(2).sum(-1).sqrt()
+
+R = euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ results_resi[4]
+top_mask = (R @ net_resi[0].get_model()[0].permute(1,0)).permute(1,0)[:,2] > 0
+bot_mask = top_mask.logical_not()
+
+std_dist_top = distances[:,top_mask].std(1)
+std_dist_bot = distances[:,bot_mask].std(1)
+mean_dist_top = distances[:,top_mask].mean(1)
+mean_dist_bot = distances[:,bot_mask].mean(1)
+
+def _to_pretty_sci(x: float)->str:
+    superscripts = "⁺⁻⁰¹²³⁴⁵⁶⁷⁸⁹"
+    normal       = "+-0123456789"
+    mapping=dict(zip(normal, superscripts))
+    x_str = ("%.1E"%x).split("E")
+    print(x_str)
+    return x_str[0] + "×10" + "".join([mapping[i] for i in x_str[1]])
 
 
 
-pts1 = net_resi[0].get_model()[0].cpu()
-pts2 = pts_resi[0]
-
+eccentricity = (1-std_ratio_resi[1]**2).sqrt()
+top_stats = scipy.stats.pearsonr(eccentricity[:,0], std_dist_top)
+bot_stats = scipy.stats.pearsonr(eccentricity[:,1], std_dist_bot)
+plt.close('all')
 plt.clf()
-plt.subplot(1,1,1,projection='3d')
-plt.gca().scatter(*pts1.permute(1,0))
-plt.gca().scatter(*pts2.permute(1,0))
+plt.scatter(eccentricity[:,0], std_dist_top, label=f"NR r={top_stats.statistic:0.2}, p={_to_pretty_sci(top_stats.pvalue)}")
+plt.scatter(eccentricity[:,1], std_dist_bot, label=f"CR r={bot_stats.statistic:0.2}, p={_to_pretty_sci(bot_stats.pvalue)}")
+plt.xlabel('Eccentricity')
+plt.ylabel('Standard deviation of doublet spacing')
+plt.legend()
+plt.pause(.1)
+plt.savefig('tmp/doublet_spacing_variance_vs_eccentricity.svg')
 
-for p1, p2 in zip(pts1, pts2):
-    ps = torch.stack([p1, (p1+p2)/2, p2], 0)
-    ps = torch.stack([p1, (p1+p2)/2, p2], 0)
-    plt.gca().plot(*ps.permute(1,0)[:,0:2], c=plt.cm.winter(0.0)) # pylint: disable = no-member
-    plt.gca().plot(*ps.permute(1,0)[:,1:3], c=plt.cm.winter(1.0)) # pylint: disable = no-member
+
+#for i in range(100):
+#
+#    pts1 = net_resi[0].get_model()[0].cpu()
+#    pts2 = pts_resi[i]
+#
+#    plt.clf()
+#    plt.subplot(1,1,1,projection='3d')
+#    plt.gca().scatter(*pts1.permute(1,0))
+#    plt.gca().scatter(*pts2.permute(1,0))
+#
+#    for p1, p2 in zip(pts1, pts2):
+#        ps = torch.stack([p1, (p1+p2)/2, p2], 0)
+#        ps = torch.stack([p1, (p1+p2)/2, p2], 0)
+#        plt.gca().plot(*ps.permute(1,0)[:,0:2], c=plt.cm.winter(0.0)) # pylint: disable = no-member
+#        plt.gca().plot(*ps.permute(1,0)[:,1:3], c=plt.cm.winter(1.0)) # pylint: disable = no-member
+#    
+#:plt.show()
 
