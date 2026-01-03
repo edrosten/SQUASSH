@@ -250,8 +250,8 @@ def _main()->None:
     nupc3d = [t.to(device.device).half() for t in resi_data.load_3d()]
     #nupc3d = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
 
-    initial_points=32
-    mult = 1
+    initial_points=35
+    mult = 20
     scatter = 0.01
 
     SCALE=1.3
