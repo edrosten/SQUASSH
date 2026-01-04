@@ -306,7 +306,7 @@ def _train_dataset(subdir:Optional[str], param_txt:List[str],
 
     if subdir is not None:
         output_dir = output_dir / subdir
-        output_dir.mkdir()
+        output_dir.mkdir(parents=True)
 
     torch.save(net.state_dict(), output_dir/"initial_net.zip")
 
