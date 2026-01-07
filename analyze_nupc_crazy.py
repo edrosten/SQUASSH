@@ -52,7 +52,7 @@ def _load_net(nupc3d: list[Tensor], trained_weights: dict, pts:int)->tuple[Gener
     return net, parameterisation
 
 
-def _analyze(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->tuple[Tensor, Tensor, Tensor]:
+def _analyze(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->tuple[Tensor, Tensor, Tensor, list[int], Tensor]:
 
     final_sigma = train.fwhm_to_sigma(final_fwhm)
     final_sigma_t = torch.tensor(final_sigma)
@@ -70,11 +70,13 @@ def _analyze(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->tuple[Te
     #plt.ion()
 
     pts_list = []
+    ind_list = []
+    r_list = []
 
     plot=False
 
     with torch.no_grad():
-        for datum in tqdm(loader):
+        for index,datum in enumerate(tqdm(loader)):
 
             t,r,_,is_valid,parameters = net.process_input(datum, min_sigma_nm=final_sigma_t)
 
@@ -86,6 +88,8 @@ def _analyze(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->tuple[Te
 
             if is_valid > 0.5:
                 pts_list.append(points.cpu())
+                ind_list.append(index)
+                r_list.append(r)
 
             # cov = vec @ val.diag() @ trn(vec)
 
@@ -114,12 +118,12 @@ def _analyze(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->tuple[Te
                 plt.tight_layout()
                 plt.show()
 
-    return torch.stack(pts_list, 0), intensities.squeeze(0), parameterisation.get_R().cpu().detach()
+    return torch.stack(pts_list, 0), intensities.squeeze(0), parameterisation.get_R().cpu().detach(), ind_list, torch.stack(r_list, 0)
 
 
 
-def _get_stuff(nupc3d: list[Tensor], trained_weights: dict, components:int, pts:int=700)->tuple[tuple[Tensor,Tensor,Tensor,Tensor,Tensor], Tensor, Tensor]:
-    results_pts, results_intensities, results_R = _analyze(nupc3d, trained_weights, pts)
+def _get_stuff(nupc3d: list[Tensor], trained_weights: dict, components:int, pts:int=700)->tuple[tuple[Tensor,Tensor,Tensor,Tensor,Tensor], Tensor, Tensor, list[int], Tensor]:
+    results_pts, results_intensities, results_R, good_inds, rotations = _analyze(nupc3d, trained_weights, pts)
 
     #nupc3d_bates = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
     #trained_weights_bates = torch.load('log/1766605809-a396351dc2c407f97a32efa35b421a9aa8d2de55/phase_2/final_net.zip', map_location=torch.device('cpu'))
@@ -169,8 +173,15 @@ def _get_stuff(nupc3d: list[Tensor], trained_weights: dict, components:int, pts:
 
     #Rot = euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ results_resi_R
     Rot = results_R
+    
+    print(rotations.shape)
+    print(R.shape)
+    print(R)
+    print(rotations)
 
-    return (centre.cpu(), stddev.cpu(), Vh_vectors[0:components, :].cpu(), results_intensities.cpu(), Rot.cpu()), torch.stack(covs_list,0), results_pts
+    cov_rot_to_image_space = rotations.cpu() @ R.permute(1,0).unsqueeze(0).expand(rotations.shape[0], 3, 3).cpu()
+
+    return (centre.cpu(), stddev.cpu(), Vh_vectors[0:components, :].cpu(), results_intensities.cpu(), Rot.cpu()), torch.stack(covs_list,0), results_pts, good_inds, cov_rot_to_image_space
     
 
 
@@ -291,7 +302,10 @@ def _std_and_ratio(covs: torch.Tensor)->tuple[torch.Tensor, torch.Tensor]:
 
 torch.no_grad()
 
+
+nupc3d_resi, nupc3d_resi_means = resi_data.load_3d_with_means()
 nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
+
 #trained_weights_resi = torch.load('log/1766516868-66b60604c41adb3c784b829cbd0205da1b12c1cd/phase_2/final_net.zip', map_location=torch.device('cpu'))
 #results_resi, covs_resi = _get_stuff(nupc3d_resi, trained_weights_resi, COMPONENTS)
 
@@ -299,8 +313,8 @@ nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
 
 # 32 point model!
 trained_weights_resi = torch.load('log/1767449867-0b3ce320f9213553e0b7d942d407268e8c3db4a4/phase_2/final_net.zip', map_location=torch.device('cpu'))
-results_resi, covs_resi, pts_resi = _get_stuff(nupc3d_resi, trained_weights_resi, COMPONENTS, 32)
-
+results_resi, covs_resi, pts_resi, good_inds_resi, cov_rot_resi = _get_stuff(nupc3d_resi, trained_weights_resi, COMPONENTS, 32)
+means_resi = torch.stack(nupc3d_resi_means, 0)[good_inds_resi]
 
 
 std_ratio_resi = _std_and_ratio(covs_resi)
@@ -345,56 +359,75 @@ def _nn_graph(pts: Tensor)->tuple[Tensor, Tensor]:
         p1 = pts[i] 
         p2 = pts[index_of_closest[i]]
         ps = torch.stack([p1, (p1+p2)/2, p2], 0)
-        plt.gca().plot(*ps.permute(1,0)[:,0:2], c=plt.cm.winter(0.0)) # pylint: disable = no-member
-        plt.gca().plot(*ps.permute(1,0)[:,1:3], c=plt.cm.winter(1.0)) # pylint: disable = no-member
+        plt.gca().plot(*ps.permute(1,0)[:,0:2], c=plt.cm.winter(0.0)) #type: ignore[attr-defined] # pylint: disable=no-member
+        plt.gca().plot(*ps.permute(1,0)[:,1:3], c=plt.cm.winter(1.0)) #type: ignore[attr-defined] # pylint: disable=no-member
 
 
     return index_of_closest, good_points
 
 
 
-index_closest, good_mask = _nn_graph(net_resi[0].get_model()[0])
-
-assert good_mask.all(), "Honestly this has not been tested with slightly incomplete models"
 
 
-pts = pts_resi
-closest = pts[:, index_closest, :]
+def _plot_distance_vs_eccentricity()->None:
+
+    index_closest, good_mask = _nn_graph(net_resi[0].get_model()[0])
+
+    assert good_mask.all(), "Honestly this has not been tested with slightly incomplete models"
+
+    pts = pts_resi
+    closest = pts[:, index_closest, :]
 
 
-distances = (pts-closest).pow(2).sum(-1).sqrt()
+    distances = (pts-closest).pow(2).sum(-1).sqrt()
 
-R = euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ results_resi[4]
-top_mask = (R @ net_resi[0].get_model()[0].permute(1,0)).permute(1,0)[:,2] > 0
-bot_mask = top_mask.logical_not()
+    R = euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ results_resi[4]
+    top_mask = (R @ net_resi[0].get_model()[0].permute(1,0)).permute(1,0)[:,2] > 0
+    bot_mask = top_mask.logical_not()
 
-std_dist_top = distances[:,top_mask].std(1)
-std_dist_bot = distances[:,bot_mask].std(1)
-mean_dist_top = distances[:,top_mask].mean(1)
-mean_dist_bot = distances[:,bot_mask].mean(1)
+    std_dist_top = distances[:,top_mask].std(1)
+    std_dist_bot = distances[:,bot_mask].std(1)
+    #mean_dist_top = distances[:,top_mask].mean(1)
+    #mean_dist_bot = distances[:,bot_mask].mean(1)
 
-def _to_pretty_sci(x: float)->str:
-    superscripts = "⁺⁻⁰¹²³⁴⁵⁶⁷⁸⁹"
-    normal       = "+-0123456789"
-    mapping=dict(zip(normal, superscripts))
-    x_str = ("%.1E"%x).split("E")
-    print(x_str)
-    return x_str[0] + "×10" + "".join([mapping[i] for i in x_str[1]])
+    def _to_pretty_sci(x: float)->str:
+        superscripts = "⁺⁻⁰¹²³⁴⁵⁶⁷⁸⁹"
+        normal       = "+-0123456789"
+        mapping=dict(zip(normal, superscripts))
+        x_str = ("%.1E"%x).split("E") # pylint: disable=consider-using-f-string
+        print(x_str)
+        return x_str[0] + "×10" + "".join([mapping[i] for i in x_str[1]])
 
 
 
-eccentricity = (1-std_ratio_resi[1]**2).sqrt()
-top_stats = scipy.stats.pearsonr(eccentricity[:,0], std_dist_top)
-bot_stats = scipy.stats.pearsonr(eccentricity[:,1], std_dist_bot)
-plt.close('all')
-plt.clf()
-plt.scatter(eccentricity[:,0], std_dist_top, label=f"NR r={top_stats.statistic:0.2}, p={_to_pretty_sci(top_stats.pvalue)}")
-plt.scatter(eccentricity[:,1], std_dist_bot, label=f"CR r={bot_stats.statistic:0.2}, p={_to_pretty_sci(bot_stats.pvalue)}")
-plt.xlabel('Eccentricity')
-plt.ylabel('Standard deviation of doublet spacing')
-plt.legend()
-plt.pause(.1)
-plt.savefig('tmp/doublet_spacing_variance_vs_eccentricity.svg')
+    eccentricity = (1-std_ratio_resi[1]**2).sqrt()
+    top_stats = scipy.stats.pearsonr(eccentricity[:,0], std_dist_top)
+    bot_stats = scipy.stats.pearsonr(eccentricity[:,1], std_dist_bot)
+    plt.close('all')
+    plt.clf()
+    plt.scatter(eccentricity[:,0], std_dist_top, label=f"NR r={top_stats.statistic:0.2}, p={_to_pretty_sci(top_stats.pvalue)}")
+    plt.scatter(eccentricity[:,1], std_dist_bot, label=f"CR r={bot_stats.statistic:0.2}, p={_to_pretty_sci(bot_stats.pvalue)}")
+    plt.xlabel('Eccentricity')
+    plt.ylabel('Standard deviation of doublet spacing')
+    plt.legend()
+    plt.pause(.1)
+    plt.savefig('tmp/doublet_spacing_variance_vs_eccentricity.svg')
+
+_plot_distance_vs_eccentricity()
+
+
+
+# eigenvectors are the columns
+covs_evalues, covs_evectors = torch.linalg.eigh(covs_resi) #pylint: disable=not-callable
+
+# Not guaranteed but the max is always the last
+assert covs_evalues.max(-1).indices.min()==1
+
+covs_evectors = cov_rot_resi.unsqueeze(1).expand(-1, 2, 3, 3)[:,:,0:2,0:2] @ covs_evectors
+
+cov_biggest_vector = covs_evectors[...,:,1]
+cov_biggest_vector *= cov_biggest_vector[...,1].sign().unsqueeze(-1).expand(-1, 2, 2)
+angles = torch.atan2(cov_biggest_vector[...,1], cov_biggest_vector[...,0])
 
 
 #for i in range(100):
@@ -402,7 +435,7 @@ plt.savefig('tmp/doublet_spacing_variance_vs_eccentricity.svg')
 #    pts1 = net_resi[0].get_model()[0].cpu()
 #    pts2 = pts_resi[i]
 #
-#    plt.clf()
+#    plt.clf()index_closest, good_mask = _nn_graph(net_resi[0].get_model()[0])
 #    plt.subplot(1,1,1,projection='3d')
 #    plt.gca().scatter(*pts1.permute(1,0))
 #    plt.gca().scatter(*pts2.permute(1,0))
