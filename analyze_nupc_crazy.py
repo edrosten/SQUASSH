@@ -17,7 +17,7 @@ import device
 from network import GeneralPredictReconstruction
 from matrix import trn, euler
 from localisation_data import LocalisationDataSetMultipleDan6
-from train_nupc import PredictReconstructionCrazy, AxialStretchRadialGeneralExpandCrazy
+from train_nupc import PredictReconstruction, AxialStretchRadialExpandWithGeneralShift
 import save_ply
 
 
@@ -37,13 +37,15 @@ final_fwhm = SCALE * 10.0
 
 
 
-def _load_net(nupc3d: list[Tensor], trained_weights: dict, pts:int)->tuple[GeneralPredictReconstruction, AxialStretchRadialGeneralExpandCrazy]:
-    net, parameterisation = PredictReconstructionCrazy(model_size=pts, extra_points=pts, **vars(data_parameters), data=nupc3d)
-    parameterisation.crazy=True
+def _load_net(nupc3d: list[Tensor], trained_weights: dict, pts:int)->tuple[GeneralPredictReconstruction, AxialStretchRadialExpandWithGeneralShift]:
+    net, parameterisation = PredictReconstruction(initial_model_size=pts, final_model_size=pts, **vars(data_parameters), data=nupc3d)
+    parameterisation.per_point_shift=True
     
     if "_orig" in next(iter(trained_weights.keys())):
         trained_weights = { k[10:]:v for k,v in trained_weights.items()}
+    trained_weights = { k.replace("_shift_network", "shift_network"):v for k,v in trained_weights.items()}
     net.load_state_dict(trained_weights)
+
 
     net.eval()
     for i in net.parameters():
