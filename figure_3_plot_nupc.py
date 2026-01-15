@@ -1,7 +1,9 @@
 from dataclasses import dataclass
+import math
 import random
 
 import numpy as np
+import scipy
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
@@ -14,7 +16,7 @@ import resi_data         # noqa pylint:disable=unused-import
 import mark_bates_data   # noqa pylint:disable=unused-import
 import train
 import device
-from matrix import trn
+from matrix import trn, euler
 from network import GeneralPredictReconstruction
 from localisation_data import LocalisationDataSetMultipleDan6
 from train_nupc import PredictReconstruction, AxialStretchRadialExpandWithGeneralShift
@@ -62,11 +64,14 @@ def _load_net(nupc3d: list[Tensor], trained_weights: dict, pts:int)->tuple[Gener
         
     return net, parameterisation
 
+# Batched covariance matrix
 def _cov(points: Tensor)->Tensor:
     assert len(points.shape)==3
     pts_centred = points - points.mean(1).unsqueeze(1).expand_as(points)
     return torch.einsum('hij,hik->hjk', pts_centred, pts_centred)/pts_centred.shape[1]
 
+# Assuming a 2D cov matrix, the angle (normalized to 0-180 of the
+# vector corresponding to the largest eigenvalue
 def _primary_axis_angle(cov: Tensor)->Tensor:
     assert len(cov.shape)==3
     assert cov.shape[1] == 2
@@ -81,13 +86,38 @@ def _primary_axis_angle(cov: Tensor)->Tensor:
 
 
 @dataclass
+class _PCAResult:
+    S: Tensor
+    Vh_vectors: Tensor
+    stddev: Tensor
+    centre: Tensor
+
+
+def _PCA(points:Tensor)->_PCAResult:
+    n_data = points.shape[0]
+    flat_pts =points.reshape(n_data, -1)
+
+    flat_pts_centred = flat_pts - flat_pts.mean(0).unsqueeze(0).expand(n_data, -1)
+    (_, S, Vh_vectors) = torch.linalg.svd(flat_pts_centred, full_matrices=False) # pylint: disable=not-callable
+
+    # Covariances are S^2 / (n-1)
+    # standard devs are S/sqrt(n-1)
+    stddev = S / (math.sqrt(n_data)-1)
+    centre = flat_pts.mean(0).reshape(-1, 3)
+
+    return _PCAResult(S=S,Vh_vectors=Vh_vectors,stddev=stddev,centre=centre)
+
+
+
+@dataclass
 class _NetRes:
-    points: Tensor
+    points_img: Tensor
+    points_model: Tensor
     indices: list[int]
     images: list[list[Tensor]]
     data: list[list[Tensor]]
-
-
+    net: GeneralPredictReconstruction
+    parameterisation: AxialStretchRadialExpandWithGeneralShift
 
 
 def _apply_net(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->_NetRes:
@@ -103,16 +133,11 @@ def _apply_net(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->_NetRe
     loader = DataLoader(dataset, batch_size=1, shuffle=False)
     dataset.set_sigma(final_sigma)
 
-    R=4
-    C=6
-    #plt.ion()
-
-    pts_list = []
+    pts_img_list = []
+    pts_model_list = []
     ind_list = []
     img_list = []
     data_list = []
-
-    plot=False
 
     with torch.no_grad():
         for index,datum in enumerate(tqdm(loader)):
@@ -122,73 +147,137 @@ def _apply_net(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->_NetRe
             batch_size = t.shape[0]
 
             # Apply the parameterisation
-            points, _, _ = parameterisation(*net.get_model(), parameters)
+            points_orig, _, _ = parameterisation(*net.get_model(), parameters)
             
             # Note that the parameterisation can change the number of points.
-            Nv = points.shape[1]
+            Nv = points_orig.shape[1]
             t_per_point = t.unsqueeze(1).expand(batch_size, Nv, 3)
             
             # Rotate and shift resulting aggregate
-            points = trn(r @ trn(points)) + t_per_point
+            points_img = trn(r @ trn(points_orig)) + t_per_point
 
-            points = points.squeeze().cpu()
+            points_img = points_img.squeeze().cpu()
 
             if is_valid > 0.5:
-                pts_list.append(points.cpu())
+                pts_img_list.append(points_img.cpu())
+                pts_model_list.append(points_orig.squeeze().cpu())
                 ind_list.append(index)
                 img_list.append(imgs)
                 data_list.append(datum)
 
-                # cov = vec @ val.diag() @ trn(vec)
-
-                if plot:
-                    plt.clf()
-                    plt.suptitle(f'Validity = {is_valid.item():0.3}')
-                    for n, i in enumerate(datum):
-                        plt.subplot(R, C, n+1)
-                        plt.imshow(i[0,0].cpu(), cmap='grey')
-                        plt.axis('off')
-                
-                    reconstruction, _, _, _ = net(datum, final_sigma_t) 
-                    for n, i in enumerate(reconstruction):
-                        plt.subplot(R, C, C + n+1)
-                        plt.imshow(i[0,0].cpu(), cmap='grey')
-                        plt.axis('off')
-                    
-                    for n, i in enumerate(train._normalized_difference(datum,reconstruction)): # pylint: disable=protected-access
-                        plt.subplot(R, C, 2*C + n+1)
-                        plt.imshow(i[0,0].cpu(), cmap='grey')
-                        plt.axis('off')
-
-                    plt.subplot(R, C, 3*C + 1)
-                    plt.imshow(datum[0][0,0].cpu(), cmap='grey')
-                    pts_px = points[:,0:2] / data_parameters.nm_per_pixel_xy + data_parameters.image_size_xy/2
-                    plt.scatter(pts_px[:,0], pts_px[:,1], c=[.5, .5, 1, .02])
-
-                    #center_2d_px = pts_px.mean(0)
-                    #
-                    #for i in [0,1]:
-                    #    v = vec[:,i] * val[i].sqrt() / data_parameters.nm_per_pixel_xy
-                    #    v = torch.stack([-v, v], 0) + center_2d_px.unsqueeze(0).expand(2,2)
-                    #    plt.plot(*v.permute(1,0))
-
-
-                    #plt.axis('square')
-
-                    plt.subplot(R, C, 3*C + 3, projection='3d')
-                    plt.gca().scatter(*trn(points.cpu()))
-                    plt.axis('square')
-                    plt.tight_layout()
-                    plt.pause(.1)
-                    #plt.waitforbuttonpress()
-
     return _NetRes(
-        points=torch.stack(pts_list, 0), 
+        points_img=torch.stack(pts_img_list, 0), 
+        points_model=torch.stack(pts_model_list, 0), 
         indices=ind_list, 
         images=img_list,
         data=data_list,
+        net=net,
+        parameterisation=parameterisation
     )
 
+
+def _nn_graph(pts: Tensor)->tuple[Tensor, Tensor]:
+    # Calculate teh nearest neighbour graph.
+    # where all 32 points were fitted correctly.
+
+    # Simple quadratical method. Only 32 points and we have a GPU
+    npts = pts.shape[0]
+    
+    pairwise_distance = (pts.unsqueeze(0).expand(npts, *pts.shape) - pts.unsqueeze(1).expand(npts, *pts.shape)).pow(2).sum(-1).sqrt() + torch.eye(npts)*1e10
+    
+    min_dist, index_of_closest = pairwise_distance.min(1)
+    
+    # Only keep neighbours closer than 25nm. This should capture all doublets
+    good_points_mask = min_dist < 25.0
+    
+    plt.subplot(1,1,1,projection='3d')
+    plt.gca().scatter(*pts.permute(1,0))
+    for i in torch.arange(npts)[good_points_mask]:
+        p1 = pts[i] 
+        p2 = pts[index_of_closest[i]]
+        ps = torch.stack([p1, (p1+p2)/2, p2], 0)
+        plt.gca().plot(*ps.permute(1,0)[:,0:2], c=plt.cm.winter(0.0)) #type: ignore[attr-defined] # pylint: disable=no-member
+        plt.gca().plot(*ps.permute(1,0)[:,1:3], c=plt.cm.winter(1.0)) #type: ignore[attr-defined] # pylint: disable=no-member
+
+    plt.title('Check NN assignment')
+
+    return index_of_closest, good_points_mask
+
+def _std_and_ratio(covs: torch.Tensor)->tuple[torch.Tensor, torch.Tensor]:
+    # Std dev (variance) as trace of covariance matrix, equivlaent to RMS radius
+    assert covs.shape[-1] == 2
+    assert covs.shape[-2] == 2
+    stds = covs.diagonal(offset=0, dim1=-1, dim2=-2).sum(-1).sqrt()
+
+    principal_axes=torch.linalg.eigvalsh(covs).sqrt() # pylint: disable=not-callable
+    ratios = principal_axes[...,0]/principal_axes[...,1]
+    return stds, ratios
+
+def _plot_distance_vs_eccentricity(res: _NetRes)->None:
+
+    assert res.points_model.shape[1] == 32, "This only works with 32 point models"
+
+    baseline_model = res.net.get_model()[0].cpu()
+
+    plt.figure()
+    index_closest, good_mask = _nn_graph(baseline_model)
+    assert good_mask.all(), "Honestly this has not been tested with slightly incomplete models"
+
+    R = euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ res.parameterisation.get_R().cpu()
+
+    pts = res.points_model @ R.permute(1,0).unsqueeze(0).expand(res.points_model.shape[0], 3, 3)
+    closest = pts[:, index_closest, :]
+    distances = (pts-closest).pow(2).sum(-1).sqrt()
+    
+
+    top_mask = (R @ baseline_model.permute(1,0)).permute(1,0)[:,2] > 0
+    bot_mask = top_mask.logical_not()
+
+    plt.figure()
+    plt.subplot(1,1,1,projection='3d')
+    plt.gca().scatter(*baseline_model[top_mask].permute(1,0))
+    plt.gca().scatter(*baseline_model[bot_mask].permute(1,0))
+    plt.title('Check top/bottom segmentation')
+
+    std_dist_top = distances[:,top_mask].std(1)
+    std_dist_bot = distances[:,bot_mask].std(1)
+
+    cov_top = _cov(pts[:,top_mask,0:2])
+    cov_bot = _cov(pts[:,bot_mask,0:2])
+
+    _, ratio_top = _std_and_ratio(cov_top)
+    _, ratio_bot = _std_and_ratio(cov_bot)
+       
+    eccentricity_top = (1-ratio_top**2).sqrt()
+    eccentricity_bot = (1-ratio_bot**2).sqrt()
+       
+    #mean_dist_top = distances[:,top_mask].mean(1)
+    #mean_dist_bot = distances[:,bot_mask].mean(1)
+
+    def _to_pretty_sci(x: float)->str:
+        superscripts = "⁺⁻⁰¹²³⁴⁵⁶⁷⁸⁹"
+        normal       = "+-0123456789"
+        mapping=dict(zip(normal, superscripts))
+        x_str = ("%.1E"%x).split("E") # pylint: disable=consider-using-f-string
+        print(x_str)
+        return x_str[0] + "×10" + "".join([mapping[i] for i in x_str[1]])
+
+
+
+    top_stats = scipy.stats.pearsonr(eccentricity_top, std_dist_top)
+    bot_stats = scipy.stats.pearsonr(eccentricity_bot, std_dist_bot)
+    plt.subplots(figsize=(8*cm, 4*cm))
+    plt.clf()
+    plt.scatter(eccentricity_top, std_dist_top, label=f"NR r={top_stats.statistic:0.2}, p={_to_pretty_sci(top_stats.pvalue)}")
+    plt.scatter(eccentricity_bot, std_dist_bot, label=f"CR r={bot_stats.statistic:0.2}, p={_to_pretty_sci(bot_stats.pvalue)}")
+    plt.xlabel('Eccentricity', fontsize=FS)
+    plt.ylabel('Standard deviation\nof doublet spacing', fontsize=FS)
+    plt.xticks(fontsize=FS)
+    plt.yticks(fontsize=FS)
+    plt.legend(fontsize=FS)
+    plt.tight_layout()
+    plt.pause(.1)
+    plt.savefig('tmp/doublet_spacing_variance_vs_eccentricity.svg')
 
 
 
@@ -198,8 +287,8 @@ def _plot_angular(good_means: Tensor, inp: _NetRes)->None:
     # Use it for both to they are a consistent size
     plot_size = 31397.046857833866
     
-    angs = _primary_axis_angle(_cov(inp.points[:,:,0:2]))
-    eigs, _ = torch.linalg.eigh(_cov(inp.points[:,:,0:2])) # pylint: disable=not-callable
+    angs = _primary_axis_angle(_cov(inp.points_img[:,:,0:2]))
+    eigs, _ = torch.linalg.eigh(_cov(inp.points_img[:,:,0:2])) # pylint: disable=not-callable
     
     plt.subplots(figsize=(8*cm, 4*cm))
     plt.clf()
@@ -294,9 +383,14 @@ def _plot_angular(good_means: Tensor, inp: _NetRes)->None:
 #    plt.plot([0, -edge1_x, -edge2_x, 0], [0, -edge1_y, -edge2_y, 0])
 
 
-
 nupc3d_resi, nupc3d_resi_means = resi_data.load_3d_with_means()
 nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
+
+trained_weights_resi_32 = torch.load('log/1767449867-0b3ce320f9213553e0b7d942d407268e8c3db4a4/phase_2/final_net.zip', map_location=torch.device('cpu'))
+res_resi_32 = _apply_net(nupc3d_resi, trained_weights_resi_32, 32)
+_plot_distance_vs_eccentricity(res_resi_32)
+plt.savefig('tmp/res32_spacing_v_eccentricity.svg')
+
 trained_weights_resi = torch.load('log/1766516868-66b60604c41adb3c784b829cbd0205da1b12c1cd/phase_2/final_net.zip', map_location=torch.device('cpu'))
 res_resi = _apply_net(nupc3d_resi, trained_weights_resi)
 good_means_resi = torch.stack(nupc3d_resi_means)[res_resi.indices,:]
