@@ -219,7 +219,7 @@ def _main()->None:
         params.schedule[0].final_lr= 0.0001
         
 
-        fast = net # cast(network.GeneralPredictReconstruction, torch.compile(net))
+        fast = cast(network.GeneralPredictReconstruction, torch.compile(net))
         train.retrain(fast, dataset_initial, params, f'run-{i:03}-phase_0')
 
 if __name__ == "__main__":
