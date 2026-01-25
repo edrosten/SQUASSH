@@ -88,7 +88,7 @@ def _primary_axis_angle(cov: Tensor)->Tensor:
 @dataclass
 class _PCAResult:
     S: Tensor
-    Vh_vectors: Tensor
+    Vh: Tensor
     stddev: Tensor
     centre: Tensor
 
@@ -104,8 +104,9 @@ def _PCA(points:Tensor)->_PCAResult:
     # standard devs are S/sqrt(n-1)
     stddev = S / (math.sqrt(n_data)-1)
     centre = flat_pts.mean(0).reshape(-1, 3)
+    Vh_vectors = Vh_vectors.reshape(Vh_vectors.shape[0], *centre.shape)
 
-    return _PCAResult(S=S,Vh_vectors=Vh_vectors,stddev=stddev,centre=centre)
+    return _PCAResult(S=S,Vh=Vh_vectors,stddev=stddev,centre=centre)
 
 
 
@@ -210,9 +211,10 @@ def _print_ring_size_ratio_top_bottom(res: _NetRes)->None:
     for i in [0,1]:
         print(f"{ratio[:,i].mean().item():0.3} ± {(ratio[:,i].var()/ratio.shape[0]).sqrt().item():0.1}   ", end="")
 
+    print("")
 
 def _nn_graph(pts: Tensor)->tuple[Tensor, Tensor]:
-    # Calculate teh nearest neighbour graph.
+    # Calculate the nearest neighbour graph.
     # where all 32 points were fitted correctly.
 
     # Simple quadratical method. Only 32 points and we have a GPU
@@ -409,87 +411,65 @@ def _plot_angular(good_means: Tensor, inp: _NetRes)->None:
 
 
 
-def _analyze_32_point_pairs(res: _NetRes)->None:
+def _pca_figure(res: _NetRes)->None:
+    # Flip X and Z axes
+    R = _rotation_ring_to_xy(res)
+
+    intensities = res.net.get_model()[1].cpu().detach()
+
+
+    pca = _PCA(res.points_model)
+    centre = pca.centre
+    Vh = pca.Vh
+    centre = pca.centre
+    stddev = pca.stddev
+
+
+    _, darkest_first = intensities.sort()
+    intensities = intensities[darkest_first]
+    centre = centre[darkest_first,:]
+    Vh = Vh[:, darkest_first, :]
+
+
+    top_mask = (R @ centre.permute(1,0)).permute(1,0)[:,2] > 0
+
+    plt.subplots(figsize=(8*cm, 4*cm))
     
-    assert res.points_model.shape[1] == 32, "This only works with 32 point models"
-    baseline_model = res.net.get_model()[0].cpu()
-    index_closest, good_mask = _nn_graph(baseline_model)
-    assert good_mask.all(), "Honestly this has not been tested with slightly incomplete models"
+    N=3 
+    alpha=0.1
+    plt.clf()
+    for I in range(3):
+        component = Vh[I]*stddev[I]*3
 
-    R = euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ res.parameterisation.get_R().cpu()
+        plt.subplot(2,N,I+1)
+        plt.scatter(*(R @ (centre          )[top_mask,:].permute(1,0))[0:2,:], c=intensities[top_mask], alpha=alpha, cmap='Greys', edgecolors='none')  # type: ignore[misc]
+        plt.scatter(*(R @ (centre+component)[top_mask,:].permute(1,0))[0:2,:], c=intensities[top_mask], alpha=alpha, cmap='Oranges', edgecolors='none')  # type: ignore[misc]
+        plt.xlabel(f'Component {I+1}', fontsize=FS)
+        plt.axis('square')
+        plt.axis((-65,65,-65,65))
+        for line in ['top', 'bottom', 'left', 'right']:
+            plt.gca().spines[line].set_visible(False)
+        plt.gca().set_xticks([])
+        plt.gca().set_yticks([])
+        plt.gca().xaxis.set_label_position('top')
+        if I == 0:
+            plt.ylabel('Upper ring', fontsize=FS)
 
-    pts = res.points_model @ R.permute(1,0).unsqueeze(0).expand(res.points_model.shape[0], 3, 3)
-
-    top_mask = (R @ baseline_model.permute(1,0)).permute(1,0)[:,2] > 0
-    bot_mask = top_mask.logical_not()
-
-    mean_point_position = pts.mean(0) 
-
-
-    plt.figure()
-    plt.subplot(1,1,1,projection='3d')
-    plt.gca().scatter(*mean_point_position[top_mask,:].permute(1,0))
-    plt.gca().scatter(*mean_point_position[bot_mask,:].permute(1,0))
-    plt.title('Check top/bottom segmentation')
+        plt.subplot(2,N,I+1+N)
+        plt.scatter(*(R @ (centre          )[top_mask.logical_not(),:].permute(1,0))[0:2,:], c=intensities[top_mask.logical_not()], alpha=alpha, cmap='Greys', edgecolors='none')  # type: ignore[misc]
+        plt.scatter(*(R @ (centre+component)[top_mask.logical_not(),:].permute(1,0))[0:2,:], c=intensities[top_mask.logical_not()], alpha=alpha, cmap='Oranges', edgecolors='none')  # type: ignore[misc]
+        plt.axis('square')
+        plt.axis((-65,65,-65,65))
+        for line in ['top', 'bottom', 'left', 'right']:
+            plt.gca().spines[line].set_visible(False)
+        plt.gca().set_xticks([])
+        plt.gca().set_yticks([])
+        if I == 0:
+            plt.ylabel('Lower ring', fontsize=FS)
     
+    plt.tight_layout()
+    plt.pause(.1)
 
-
-
-
-    # Find the unique pairs without duplicates
-    pair_ind_set_second: list[int] = []
-    pair_ind_set_first: list[int] = []
-    for ind, cind in zip(range(32), index_closest, strict=True):
-        if ind not in pair_ind_set_second:
-            pair_ind_set_second.append(cind.item())
-            pair_ind_set_first.append(ind)
-    
-    pair_ind_first = torch.tensor(pair_ind_set_first)
-
-
-    top_pair_ind = torch.tensor([i.item() for i in pair_ind_first if top_mask[i]])
-    bot_pair_ind = torch.tensor([i.item() for i in pair_ind_first if bot_mask[i]])
-
-    centre_top = pts[:,top_mask,:].reshape(-1, 3).mean(0)
-    centre_bot = pts[:,bot_mask,:].reshape(-1, 3).mean(0)
-
-    closest = pts[:, index_closest, :]
-    doublet_centre = (pts+closest)/2
-    
-    
-
-    ave_dist_top = (doublet_centre[:,top_pair_ind,:] - centre_top).pow(2).sum(-1).sqrt().mean(0)
-    _, ind_closest_top = ave_dist_top.sort()
-    ind_closest4_top = top_pair_ind[ind_closest_top[0:4]]
-    ind_furthes4_top = top_pair_ind[ind_closest_top[4:]]
-
-    ave_dist_bot = (doublet_centre[:,bot_pair_ind,:] - centre_bot).pow(2).sum(-1).sqrt().mean(0)
-    _, ind_closest_bot = ave_dist_bot.sort()
-    ind_closest4_bot = bot_pair_ind[ind_closest_bot[0:4]]
-    ind_furthes4_bot = bot_pair_ind[ind_closest_bot[4:]]
-
-    plt.figure()
-
-    plt.subplot(1,2,1)
-    plt.gca().scatter(*doublet_centre[:,ind_closest4_top,0:2].mean(0).permute(1,0))
-    plt.gca().scatter(*doublet_centre[:,ind_furthes4_top,0:2].mean(0).permute(1,0))
-    plt.gca().scatter(*centre_top[0:2], marker='*') # type: ignore[misc]
-    plt.axis('square')
-
-
-    plt.subplot(1,2,2)
-    plt.gca().scatter(*doublet_centre[:,ind_closest4_bot,0:2].mean(0).permute(1,0))
-    plt.gca().scatter(*doublet_centre[:,ind_furthes4_bot,0:2].mean(0).permute(1,0))
-    plt.gca().scatter(*centre_bot[0:2], marker='+') # type: ignore[misc]
-    plt.axis('square')
-
-    #edge1_x = math.cos(edges[i]) * count
-    #edge1_y = math.sin(edges[i]) * count
-    #edge2_x = math.cos(edges[i+1]) * count
-    #edge2_y = math.sin(edges[i+1]) * count
-#
-#    plt.plot([0, edge1_x, edge2_x, 0], [0, edge1_y, edge2_y, 0])
-#    plt.plot([0, -edge1_x, -edge2_x, 0], [0, -edge1_y, -edge2_y, 0])
 
 
 nupc3d_resi, nupc3d_resi_means = resi_data.load_3d_with_means()
@@ -498,7 +478,7 @@ nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
 trained_weights_resi_32 = torch.load('log/1767449867-0b3ce320f9213553e0b7d942d407268e8c3db4a4/phase_2/final_net.zip', map_location=torch.device('cpu'))
 res_resi_32 = _apply_net(nupc3d_resi, trained_weights_resi_32, 32)
 _plot_distance_vs_eccentricity(res_resi_32)
-plt.savefig('tmp/res32_spacing_v_eccentricity.svg')
+plt.savefig('tmp/fig3_res32_spacing_v_eccentricity.svg')
 
 
 trained_weights_resi = torch.load('log/1766516868-66b60604c41adb3c784b829cbd0205da1b12c1cd/phase_2/final_net.zip', map_location=torch.device('cpu'))
@@ -508,25 +488,26 @@ good_means_resi = torch.stack(nupc3d_resi_means)[res_resi.indices,:]
 plt.close('all')
 random.seed(11)
 _plot_angular(good_means_resi, res_resi)
-plt.savefig('tmp/resi_angular.svg')
+plt.savefig('tmp/fig3_resi_angular.svg')
 
-I=0
+
+plt.close('all')
+_pca_figure(res_resi)
+plt.savefig('tmp/fig3_resi_angular.svg')
+
+
+CellNo=0
 
 nupc3d_bates, nupc3d_bates_means = mark_bates_data.load_3d_list_and_means()
 trained_weights_bates = torch.load('log/1766605809-a396351dc2c407f97a32efa35b421a9aa8d2de55/phase_2/final_net.zip', map_location=torch.device('cpu'))
-res_bates = _apply_net(nupc3d_bates[I], trained_weights_bates)
-good_means_bates = torch.stack(nupc3d_bates_means[I])[res_bates.indices,:]
+res_bates = _apply_net(nupc3d_bates[CellNo], trained_weights_bates)
+good_means_bates = torch.stack(nupc3d_bates_means[CellNo])[res_bates.indices,:]
 
 plt.close('all')
 random.seed(3)
 _plot_angular(good_means_bates, res_bates)
-plt.savefig('tmp/bates_angular.svg')
+plt.savefig('tmp/fig3_bates_angular.svg')
 
-#plt.clf()
-#plt.subplot(1,2,1)
-#plt.scatter(*good_means_bates[:,0:2].permute(1,0), c=angs_bates, cmap='twilight')
-#plt.subplot(1,2,2)
-#plt.hist(angs_bates * 180 / torch.pi, 20)
 
 
 print("RESI data")
@@ -539,3 +520,6 @@ print("Bates data")
 print("----------")
 print("")
 _print_ring_size_ratio_top_bottom(res_bates)
+
+
+
