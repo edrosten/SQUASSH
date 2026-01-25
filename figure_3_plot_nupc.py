@@ -493,7 +493,7 @@ plt.savefig('tmp/fig3_resi_angular.svg')
 
 plt.close('all')
 _pca_figure(res_resi)
-plt.savefig('tmp/fig3_resi_angular.svg')
+plt.savefig('tmp/fig3_resi_pca.svg')
 
 
 CellNo=0
