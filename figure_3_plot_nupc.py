@@ -203,12 +203,12 @@ def _print_ring_size_ratio_top_bottom(res: _NetRes)->None:
 
     print("Size top / bottom ± at 1σ")
     for i in [0,1]:
-        print(f"{stds[:,i].mean().item():0.4} ± {(stds[:,i].var()/stds.shape[0]).sqrt().item():0.2}   ", end="")
+        print(f"{stds[:,i].mean().item():0.3} ± {(stds[:,i].var()/stds.shape[0]).sqrt().item():0.1}   ", end="")
     print("\n")
 
     print("Aspect ratio top/bottom")
     for i in [0,1]:
-        print(f"{ratio[:,i].mean().item():0.4} ± {(ratio[:,i].var()/ratio.shape[0]).sqrt().item():0.2}   ", end="")
+        print(f"{ratio[:,i].mean().item():0.3} ± {(ratio[:,i].var()/ratio.shape[0]).sqrt().item():0.1}   ", end="")
 
 
 def _nn_graph(pts: Tensor)->tuple[Tensor, Tensor]:
@@ -509,10 +509,6 @@ plt.close('all')
 random.seed(11)
 _plot_angular(good_means_resi, res_resi)
 plt.savefig('tmp/resi_angular.svg')
-print("RESI data")
-print("---------")
-_print_ring_size_ratio_top_bottom(res_resi)
-
 
 I=0
 
@@ -532,6 +528,14 @@ plt.savefig('tmp/bates_angular.svg')
 #plt.subplot(1,2,2)
 #plt.hist(angs_bates * 180 / torch.pi, 20)
 
+
+print("RESI data")
+print("---------")
+_print_ring_size_ratio_top_bottom(res_resi)
+print("")
+
+
 print("Bates data")
-print("----_-----")
+print("----------")
+print("")
 _print_ring_size_ratio_top_bottom(res_bates)
