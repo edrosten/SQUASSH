@@ -203,7 +203,7 @@ def _main()->None:
         parameterisation.min_repetition_length = torch.tensor(14.)
         parameterisation.max_repetition_length = torch.tensor(18.)
         parameterisation.semi_radial_expand = torch.tensor(1.2)
-        parameterisation.max_displacement = torch.tensor(4.0)
+        parameterisation.max_displacement = torch.tensor(1.0)
 
         net.to(device.device)
         
