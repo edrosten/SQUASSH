@@ -1,3 +1,5 @@
+
+
 from dataclasses import dataclass
 
 import torch
@@ -26,14 +28,6 @@ data_parameters = train.DataParametersXYYZ(
 )
 final_fwhm = 13.0
 
-
-# General parameters for figure plotting
-# Plotting with everything twice the size improves the figure a bit
-# because the margins don't get scaled up, so the final figure looks
-# a bit tighter and wastes less space 
-FIGSCALE=2
-cm = FIGSCALE/2.54  # centimeters in inches, plus an overall figure scaling
-FS=7*FIGSCALE
 
 
 def _load_net(nupc3d: list[Tensor], trained_weights: dict, pts:int)->tuple[GeneralPredictReconstruction, AxialStretchRadialExpandWithGeneralShift]:
@@ -144,9 +138,9 @@ def _render(res: _NetRes)->torch.Tensor:
     bot_mask = top_mask.logical_not()
 
 
-    sigma=torch.tensor([3.0]).to(baseline_model)
-    nm_per_pixel=3.9
-    size=64
+    sigma=torch.tensor([1.5]).to(baseline_model)
+    nm_per_pixel=0.24375
+    size=1024
 
     res_list = []
 
@@ -163,6 +157,9 @@ def _render(res: _NetRes)->torch.Tensor:
 
     return torch.stack(res_list, 0)
 
+
+
+#def _
 
 
 nupc3d_resi, nupc3d_resi_means = resi_data.load_3d_with_means()

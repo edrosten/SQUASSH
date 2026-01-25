@@ -175,6 +175,41 @@ def _apply_net(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->_NetRe
         parameterisation=parameterisation
     )
 
+def _rotation_ring_to_xy(res: _NetRes)->Tensor:
+    # Model has the main axis aligned with the stretch, rotate so it's the Z axis
+    return euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ res.parameterisation.get_R().cpu()
+
+def _segment_top_ring(res: _NetRes)->Tensor:
+    baseline_model = res.net.get_model()[0].cpu()
+    R = _rotation_ring_to_xy(res)
+    return (R @ baseline_model.permute(1,0)).permute(1,0)[:,2] > 0
+
+
+
+def _print_ring_size_ratio_top_bottom(res: _NetRes)->None:
+    top_mask = _segment_top_ring(res)
+    pts_xy = (res.points_model @ trn(_rotation_ring_to_xy(res)))[:,:,0:2]
+    cov_top = _cov(pts_xy[:,top_mask,:])
+    cov_bot = _cov(pts_xy[:,top_mask.logical_not(),:])
+
+    covs = torch.stack([cov_top, cov_bot], 1)
+
+    # Std dev (variance) as trace of covariance matrix, equivlaent to RMS radius
+    stds = covs.diagonal(offset=0, dim1=-1, dim2=-2).sum(-1).sqrt()
+
+    principal_axes=torch.linalg.eigvalsh(covs).sqrt() # pylint: disable=not-callable
+    ratio = principal_axes[...,0]/principal_axes[...,1]
+
+
+    print("Size top / bottom ± at 1σ")
+    for i in [0,1]:
+        print(f"{stds[:,i].mean().item():0.4} ± {(stds[:,i].var()/stds.shape[0]).sqrt().item():0.2}   ", end="")
+    print("\n")
+
+    print("Aspect ratio top/bottom")
+    for i in [0,1]:
+        print(f"{ratio[:,i].mean().item():0.4} ± {(ratio[:,i].var()/ratio.shape[0]).sqrt().item():0.2}   ", end="")
+
 
 def _nn_graph(pts: Tensor)->tuple[Tensor, Tensor]:
     # Calculate teh nearest neighbour graph.
@@ -323,7 +358,7 @@ def _plot_angular(good_means: Tensor, inp: _NetRes)->None:
     plt.tight_layout()
 
 
-    #Create angulat histogram as an inset plot
+    #Create angular histogram as an inset plot
     plt.subplot(3,3,1, projection='polar')
     # x, y, w, h
     plt.gca().set_position(matplotlib.transforms.Bbox.from_bounds(.66, .3, .25, .25))
@@ -374,6 +409,80 @@ def _plot_angular(good_means: Tensor, inp: _NetRes)->None:
 
 
 
+def _analyze_32_point_pairs(res: _NetRes)->None:
+    
+    assert res.points_model.shape[1] == 32, "This only works with 32 point models"
+    baseline_model = res.net.get_model()[0].cpu()
+    index_closest, good_mask = _nn_graph(baseline_model)
+    assert good_mask.all(), "Honestly this has not been tested with slightly incomplete models"
+
+    R = euler(90*torch.tensor([torch.pi])/180, 'y').squeeze() @ res.parameterisation.get_R().cpu()
+
+    pts = res.points_model @ R.permute(1,0).unsqueeze(0).expand(res.points_model.shape[0], 3, 3)
+
+    top_mask = (R @ baseline_model.permute(1,0)).permute(1,0)[:,2] > 0
+    bot_mask = top_mask.logical_not()
+
+    mean_point_position = pts.mean(0) 
+
+
+    plt.figure()
+    plt.subplot(1,1,1,projection='3d')
+    plt.gca().scatter(*mean_point_position[top_mask,:].permute(1,0))
+    plt.gca().scatter(*mean_point_position[bot_mask,:].permute(1,0))
+    plt.title('Check top/bottom segmentation')
+    
+
+
+
+
+    # Find the unique pairs without duplicates
+    pair_ind_set_second: list[int] = []
+    pair_ind_set_first: list[int] = []
+    for ind, cind in zip(range(32), index_closest, strict=True):
+        if ind not in pair_ind_set_second:
+            pair_ind_set_second.append(cind.item())
+            pair_ind_set_first.append(ind)
+    
+    pair_ind_first = torch.tensor(pair_ind_set_first)
+
+
+    top_pair_ind = torch.tensor([i.item() for i in pair_ind_first if top_mask[i]])
+    bot_pair_ind = torch.tensor([i.item() for i in pair_ind_first if bot_mask[i]])
+
+    centre_top = pts[:,top_mask,:].reshape(-1, 3).mean(0)
+    centre_bot = pts[:,bot_mask,:].reshape(-1, 3).mean(0)
+
+    closest = pts[:, index_closest, :]
+    doublet_centre = (pts+closest)/2
+    
+    
+
+    ave_dist_top = (doublet_centre[:,top_pair_ind,:] - centre_top).pow(2).sum(-1).sqrt().mean(0)
+    _, ind_closest_top = ave_dist_top.sort()
+    ind_closest4_top = top_pair_ind[ind_closest_top[0:4]]
+    ind_furthes4_top = top_pair_ind[ind_closest_top[4:]]
+
+    ave_dist_bot = (doublet_centre[:,bot_pair_ind,:] - centre_bot).pow(2).sum(-1).sqrt().mean(0)
+    _, ind_closest_bot = ave_dist_bot.sort()
+    ind_closest4_bot = bot_pair_ind[ind_closest_bot[0:4]]
+    ind_furthes4_bot = bot_pair_ind[ind_closest_bot[4:]]
+
+    plt.figure()
+
+    plt.subplot(1,2,1)
+    plt.gca().scatter(*doublet_centre[:,ind_closest4_top,0:2].mean(0).permute(1,0))
+    plt.gca().scatter(*doublet_centre[:,ind_furthes4_top,0:2].mean(0).permute(1,0))
+    plt.gca().scatter(*centre_top[0:2], marker='*') # type: ignore[misc]
+    plt.axis('square')
+
+
+    plt.subplot(1,2,2)
+    plt.gca().scatter(*doublet_centre[:,ind_closest4_bot,0:2].mean(0).permute(1,0))
+    plt.gca().scatter(*doublet_centre[:,ind_furthes4_bot,0:2].mean(0).permute(1,0))
+    plt.gca().scatter(*centre_bot[0:2], marker='+') # type: ignore[misc]
+    plt.axis('square')
+
     #edge1_x = math.cos(edges[i]) * count
     #edge1_y = math.sin(edges[i]) * count
     #edge2_x = math.cos(edges[i+1]) * count
@@ -391,6 +500,7 @@ res_resi_32 = _apply_net(nupc3d_resi, trained_weights_resi_32, 32)
 _plot_distance_vs_eccentricity(res_resi_32)
 plt.savefig('tmp/res32_spacing_v_eccentricity.svg')
 
+
 trained_weights_resi = torch.load('log/1766516868-66b60604c41adb3c784b829cbd0205da1b12c1cd/phase_2/final_net.zip', map_location=torch.device('cpu'))
 res_resi = _apply_net(nupc3d_resi, trained_weights_resi)
 good_means_resi = torch.stack(nupc3d_resi_means)[res_resi.indices,:]
@@ -399,6 +509,9 @@ plt.close('all')
 random.seed(11)
 _plot_angular(good_means_resi, res_resi)
 plt.savefig('tmp/resi_angular.svg')
+print("RESI data")
+print("---------")
+_print_ring_size_ratio_top_bottom(res_resi)
 
 
 I=0
@@ -418,3 +531,7 @@ plt.savefig('tmp/bates_angular.svg')
 #plt.scatter(*good_means_bates[:,0:2].permute(1,0), c=angs_bates, cmap='twilight')
 #plt.subplot(1,2,2)
 #plt.hist(angs_bates * 180 / torch.pi, 20)
+
+print("Bates data")
+print("----_-----")
+_print_ring_size_ratio_top_bottom(res_bates)
