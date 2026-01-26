@@ -196,12 +196,12 @@ def _main()->None:
             model_size=280, 
             **vars(data_parameters), 
             data=data3d,
-            min_repetitions = 3,
-            max_repetitions = 5
+            min_repetitions = 6,
+            max_repetitions = 10
         )
 
-        parameterisation.min_repetition_length = torch.tensor(14.)
-        parameterisation.max_repetition_length = torch.tensor(18.)
+        parameterisation.min_repetition_length = torch.tensor(7.)
+        parameterisation.max_repetition_length = torch.tensor(9.)
         parameterisation.semi_radial_expand = torch.tensor(1.2)
         parameterisation.max_displacement = torch.tensor(1.0)
 
