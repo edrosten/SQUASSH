@@ -209,7 +209,7 @@ def _main()->None:
         
         params = train.TrainingParameters()
         params.batch_size = 20
-        params.validity_weight=0.6
+        params.validity_weight=0.8
 
         params.schedule[0].epochs = 3000
         params.schedule[0].initial_psf = 20
