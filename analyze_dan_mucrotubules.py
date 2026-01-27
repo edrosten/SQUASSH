@@ -30,14 +30,15 @@ dataset.set_batch_size(1)
 #final = "log/1748018915-fdf7a45f7f8927faa7adf19f9ea2d8359aaf7527/run-000-phase_0/final_net.zip"
 #final = "sample_logs/1748018915-fdf7a45f7f8927faa7adf19f9ea2d8359aaf7527-final_net-utubule.zip"
 #final = "log/1747596426-981c285635c0a429e4428b4bbae8c6e2f130ce53//run-000-phase_0/final_net.zip"
-final = "log/1768588470-12917b900aa0e51fe3543d8b559dc26be5c7cb6b/run-000-phase_0/final_net.zip" 
+#final = "log/1768588470-12917b900aa0e51fe3543d8b559dc26be5c7cb6b/run-000-phase_0/final_net.zip" 
+final="log/1769469930-f062d69968b6dbcdc0c74466fd2404487b46d45c/run-000-phase_0/final_net.zip"
 
 net, parameterisation = PredictReconstructionRepetitionD6(
     model_size=280, 
     **vars(data_parameters), 
     data=data3d,
-    min_repetitions = 3,
-    max_repetitions = 5
+    min_repetitions = 6,
+    max_repetitions = 10
 )
 
 
@@ -61,7 +62,7 @@ for batch in tqdm.tqdm(loader):
 
 
 net.to("cpu")
-model, intensities, _ = parameterisation(*net.get_model(), torch.tensor([[10.,10., 0., 0.]]))
+model, intensities, _ = parameterisation(*net.get_model(), torch.tensor([[10.0]*4 + [0.]*12]))
 both=torch.cat([model[0].detach(), intensities[0].unsqueeze(1).detach()], 1)
 np.savetxt('hax/tubule.txt', both)
 

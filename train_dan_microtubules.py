@@ -176,7 +176,7 @@ def PredictReconstructionRepetitionD6(model_size: int, nm_per_pixel_xy: float, i
     return reconstructor, parameterisation
 def _main()->None:
     
-    data3d = [u.to(device.device).half() for _,t in data_dan_microtubules.load_3d_3(segment_length=128).items() for u in t]
+    data3d = [u.to(device.device).half() for _,t in data_dan_microtubules.load_3d_3().items() for u in t]
 
 
     data_parameters = train.DataParametersXYYZ(
@@ -196,8 +196,8 @@ def _main()->None:
             model_size=280, 
             **vars(data_parameters), 
             data=data3d,
-            min_repetitions = 6,
-            max_repetitions = 10
+            min_repetitions = 3,
+            max_repetitions = 5
         )
 
         parameterisation.min_repetition_length = torch.tensor(7.)
