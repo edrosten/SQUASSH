@@ -1,7 +1,9 @@
 from dataclasses import dataclass
+from pathlib import Path
 import math
 import random
 
+import cv2
 import numpy as np
 import scipy
 import torch
@@ -16,6 +18,7 @@ import resi_data         # noqa pylint:disable=unused-import
 import mark_bates_data   # noqa pylint:disable=unused-import
 import train
 import device
+import save_ply
 from matrix import trn, euler
 from network import GeneralPredictReconstruction
 from localisation_data import LocalisationDataSetMultipleDan6
@@ -190,6 +193,8 @@ def _segment_top_ring(res: _NetRes)->Tensor:
 def _print_ring_size_ratio_top_bottom(res: _NetRes)->None:
     top_mask = _segment_top_ring(res)
     pts_xy = (res.points_model @ trn(_rotation_ring_to_xy(res)))[:,:,0:2]
+
+
     cov_top = _cov(pts_xy[:,top_mask,:])
     cov_bot = _cov(pts_xy[:,top_mask.logical_not(),:])
 
@@ -285,6 +290,15 @@ def _plot_distance_vs_eccentricity(res: _NetRes)->None:
     _, ratio_top = _std_and_ratio(cov_top)
     _, ratio_bot = _std_and_ratio(cov_bot)
        
+    
+    for ind, fit in enumerate(pts):
+        el_top = torch.tensor(cv2.fitEllipse(fit[top_mask,0:2].numpy())[1])
+        el_bot = torch.tensor(cv2.fitEllipse(fit[bot_mask,0:2].numpy())[1])
+        ratio_top[ind] = el_top.min()/el_top.max()
+        ratio_bot[ind] = el_bot.min()/el_bot.max()
+
+
+
     eccentricity_top = (1-ratio_top**2).sqrt()
     eccentricity_bot = (1-ratio_bot**2).sqrt()
        
@@ -317,6 +331,22 @@ def _plot_distance_vs_eccentricity(res: _NetRes)->None:
     plt.savefig('tmp/doublet_spacing_variance_vs_eccentricity.svg')
 
 
+def _primary_axis_angle_elfit(pts: Tensor)->Tensor:
+    v=[]
+    a=[]
+    for fit in pts:
+        el = cv2.fitEllipse(fit.clone().numpy())
+        v.append(el[1])
+        a.append(el[2])
+        # centre [xy]
+        # radii [a,b] (usually a<b)
+        # angle of a, want angle of b
+    vt = torch.tensor(v)
+    assert (vt[:,0]<=vt[:,1]).all()
+    
+    ang_b = (torch.tensor(a) + 90.0)%180
+    return ang_b * torch.pi / 180
+
 
 def _plot_angular(good_means: Tensor, inp: _NetRes)->None:
 
@@ -325,6 +355,7 @@ def _plot_angular(good_means: Tensor, inp: _NetRes)->None:
     plot_size = 31397.046857833866
     
     angs = _primary_axis_angle(_cov(inp.points_img[:,:,0:2]))
+    #angs = _primary_axis_angle_elfit(inp.points_img[:,:,0:2])
     eigs, _ = torch.linalg.eigh(_cov(inp.points_img[:,:,0:2])) # pylint: disable=not-callable
     
     plt.subplots(figsize=(8*cm, 4*cm))
@@ -477,6 +508,7 @@ nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
 
 trained_weights_resi_32 = torch.load('log/1767449867-0b3ce320f9213553e0b7d942d407268e8c3db4a4/phase_2/final_net.zip', map_location=torch.device('cpu'))
 res_resi_32 = _apply_net(nupc3d_resi, trained_weights_resi_32, 32)
+good_means_resi_32 = torch.stack(nupc3d_resi_means)[res_resi_32.indices,:]
 _plot_distance_vs_eccentricity(res_resi_32)
 plt.savefig('tmp/fig3_res32_spacing_v_eccentricity.svg')
 
@@ -521,5 +553,17 @@ print("----------")
 print("")
 _print_ring_size_ratio_top_bottom(res_bates)
 
+
+
+def _render_very_many(res: _NetRes)->None:
+    R = _rotation_ring_to_xy(res)
+
+    pts = res.points_model @ trn(R)
+
+    out = Path("tmp/fig3_meshes/")
+    out.mkdir()
+
+    for i,p in enumerate(tqdm(pts)):
+        save_ply.save_pointcloud_as_mesh(out/f'{i:05}.ply', p, res.net.get_model()[1].cpu().detach(), 2.0, 0.1, 50)
 
 
