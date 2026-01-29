@@ -1,17 +1,18 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import math as m
 import random
+
+import numpy as np
 import torch
 
-def generate_rand_offsets():
+def _generate_rand_offsets()->tuple[float,float,float]:
     x = np.random.normal(0, 1)
     y = np.random.normal(0, 1)
     z = np.random.normal(0, 2)
     return x,y,z
 
 #simulate num_nps of nuclear pore images, returned as a list of pytorch tensors
-def sim_nups(num_nps):
+def sim_nups(num_nps: int)->list[torch.Tensor]:
+    '''Generate N simulated nuclear pore complexes'''
     asp_rat = 0.85
 
     # note will correlate roundness with size but as this is not of interest have not corrected
@@ -32,7 +33,6 @@ def sim_nups(num_nps):
     # two rings, spaced 57nm apart.
     nps = []
     for i in range(num_nps):
-        print(i)
         counter = 0
         fluo_counter = 0
 
@@ -53,14 +53,12 @@ def sim_nups(num_nps):
         for i in range(base_num_fluo):
             totfluo+=occupancy[i]
 
-        print (totfluo)
-
         col_arrays = np.zeros((totfluo, 3))
         for k in range(num_rings):
             #print(k)
             if k==0:
                 z = -ring_sp/2
-                delta_angle = 0
+                delta_angle = 0.0
             else:
                 z = ring_sp/2
                 delta_angle = m.pi/20
@@ -80,20 +78,20 @@ def sim_nups(num_nps):
                         addx = -dimer_d*m.cos(angle2)
                         addy = dimer_d*m.sin(angle2)
                         addz = +1.2
-                    xrand,yrand,zrand = generate_rand_offsets()
+                    xrand,yrand,zrand = _generate_rand_offsets()
                     if occupancy[counter]==1:
                         col_arrays[fluo_counter,:] = np.array([basex+addx+xrand,basey+addy+yrand,z+addz+zrand])
                         fluo_counter+=1
                     elif occupancy[counter]==2:
                         col_arrays[fluo_counter,:] = np.array([basex+addx+xrand,basey+addy+yrand,z+addz+zrand])
-                        xrand,yrand,zrand = generate_rand_offsets()
+                        xrand,yrand,zrand = _generate_rand_offsets()
                         col_arrays[fluo_counter+1,:] = np.array([basex+addx+xrand,basey+addy+yrand,z+addz+zrand])
                         fluo_counter+=2
                     elif occupancy[counter]==3:
                         col_arrays[fluo_counter,:] = np.array([basex+addx+xrand,basey+addy+yrand,z+addz+zrand])
-                        xrand,yrand,zrand = generate_rand_offsets()
+                        xrand,yrand,zrand = _generate_rand_offsets()
                         col_arrays[fluo_counter+1,:] = np.array([basex+addx+xrand,basey+addy+yrand,z+addz+zrand])
-                        xrand,yrand,zrand = generate_rand_offsets()
+                        xrand,yrand,zrand = _generate_rand_offsets()
                         col_arrays[fluo_counter+2,:] = np.array([basex+addx+xrand,basey+addy+yrand,z+addz+zrand])
                         fluo_counter+=3
                     counter+=1
@@ -101,6 +99,3 @@ def sim_nups(num_nps):
         nps.append(torch.from_numpy(col_arrays))
     return nps
 
-sims = sim_nups(1000)
-print("number simulated ",len(sims))
-print("type of data in list ",type(sims[0]))
