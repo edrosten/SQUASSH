@@ -9,7 +9,7 @@ from pystrict import strict
 
 import resi_data         # noqa pylint:disable=unused-import
 import mark_bates_data   # noqa pylint:disable=unused-import
-import data.nucporesim   # noqa pylint:disable=unused-import
+from data import nucporesim  # noqa pylint:disable=unused-import
 import train
 import network
 import save_ply
@@ -155,7 +155,7 @@ def PredictReconstruction(initial_model_size: int, final_model_size: int, nm_per
 
 
 def _main()->None:
-    nupc3d = [t.to(device.device).half() for t in data.nucporesim.sim_nups(1000)]
+    nupc3d = [t.to(device.device).half() for t in nucporesim.sim_nups(300)]
     #nupc3d = [t.to(device.device).half() for t in resi_data.load_3d()]
     #nupc3d = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
 
