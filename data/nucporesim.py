@@ -24,7 +24,7 @@ def sim_nups(num_nps: int)->list[torch.Tensor]:
     num_indimer = 2
     dimer_d = 3
     phi = m.pi/12
-    alpha = m.pi/4
+    alpha = 0 
 
     #set dropout and number of observations for each site
     base_num_fluo = num_sites*num_rings*num_indimer
