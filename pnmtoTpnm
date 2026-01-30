@@ -1,0 +1,121 @@
+#!/bin/bash
+trap "exit 0" SIGPIPE
+row=0
+typ=def
+col=0
+pbm_compact_row=0
+
+n="${0##*/}"
+
+usage="$n: usage: $n [-row|-col|-pbmcompact|-h] [--] [file_name]"
+
+fname=-
+
+while [ "$1" != "" ]
+do
+	case "$1" in
+		"-row")
+			row=1
+			;;
+		"-col")
+			col=1
+			;;
+
+		"-pbmcompact")
+			pbm_compact_row=1
+			;;
+
+		"-h")
+cat << FOO
+$usage
+
+Converts a PNM in to an ASCII-fied version (still a valid PNM) but which is 
+hopefully easier to deal with in certain text processing languages.
+
+All comments are removed, and the header appears on a single line.  By default
+the output is one pixel per line with 1 or 3 pixel components per line
+depending on the type of PNM. For whitespace seperation, either a single space
+or a single newline is used.
+
+-col        Output is one pixel component per line only.
+-row        An entire row of pixels per line.
+-pbmcompact For PBMs only: an entire row per line but with no space between
+            pixel components.
+
+FOO
+			exit
+			;;
+		
+		
+		--)
+			shift
+			break
+			;;
+		-)
+			break
+			;;
+
+		-*)
+			echo "$n: error: bad argument: \"$1\"" 1>&2
+			echo "$usage"	   1>&2
+			exit 1
+			;;
+
+		*)
+			break
+			;;
+	esac
+
+	shift
+done
+
+fname="${1:--}"
+
+#Script passes plain pnm to awk with no comments and only one 
+#number per line
+
+pnmnoraw "${fname:--}" | tr -s ' ' '\n' | 
+       awk -vcol="$col" -vrow="$row"  -vpbmcompact="$pbm_compact_row" '
+BEGIN{
+	getline
+	type=$1
+
+	getline
+	xsize=$1
+
+	getline
+	header = type " " xsize " " $1
+	
+	if(type != "P1")
+	{
+		getline
+		header = header " " $1
+	}
+
+	print header
+
+	num_per_row = (type == "P3")?3:1
+
+	if(col)
+		num_per_row = 1
+
+	if(row)
+		num_per_row *= xsize
+
+	if(pbmcompact)
+		sep = ""
+	else
+		sep = " "
+
+	n=0;
+}
+
+n == 0{ row = $1 }
+n{row = row sep $1} 
+
+++n == num_per_row {
+	print row
+	row = ""
+	n=0
+}'
+

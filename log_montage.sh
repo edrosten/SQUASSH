@@ -34,7 +34,7 @@ do
 done
 
 num=$(ls $row | wc -l)
-read _ w h _ < <(  cat $row/* | pnmtoTpnm | head -1 ) 
+read _ w h _ < <(  cat $row/* | ./pnmtoTpnm | head -1 ) 
 
 cols=`awk -vw=$w -vh=$h -vn=$num '
 BEGIN{
