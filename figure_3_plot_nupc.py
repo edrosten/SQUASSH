@@ -328,7 +328,7 @@ def _plot_distance_vs_eccentricity(res: _NetRes)->None:
     plt.legend(fontsize=FS)
     plt.tight_layout()
     plt.pause(.1)
-    plt.savefig('tmp/doublet_spacing_variance_vs_eccentricity.svg')
+    plt.savefig('tmp/fig3_doublet_spacing_variance_vs_eccentricity.svg')
 
 
 def _primary_axis_angle_elfit(pts: Tensor)->Tensor:
