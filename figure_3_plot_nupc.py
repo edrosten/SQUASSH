@@ -16,7 +16,6 @@ from tqdm import tqdm
 
 import resi_data
 import mark_bates_data
-import data.nucporesim
 import train
 import device
 import save_ply
@@ -501,14 +500,6 @@ def _pca_figure(res: _NetRes)->None:
     
     plt.tight_layout()
     plt.pause(.1)
-
-
-nupc3d_sim = data.nucporesim.sim_nups(500) 
-trained_weights_sim = torch.load('log/1769723208-989a0b9b1e7e894e66932c93c6177592100c87b2//phase_2/final_net.zip', map_location=torch.device('cpu'))
-res_sim = _apply_net(nupc3d_sim, trained_weights_sim)
-nupc3d_sim_means = torch.rand(len(res_sim.indices), 2) * 10000 - 5000
-_plot_angular(nupc3d_sim_means, res_sim)
-
 
 nupc3d_resi, nupc3d_resi_means = resi_data.load_3d_with_means()
 nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
