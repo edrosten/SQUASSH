@@ -163,9 +163,9 @@ def process_data_and_plot_some_crap(data3d: List[Tensor], means: List[Tensor], d
     plot([scale_x0, scale_x1], [scale_y, scale_y], 'k', linewidth=5)
     text(scale_x0 + 500, scale_y+1000, '10$\\mu$m', fontsize=FS)
     axis('off')
-    cb = colorbar()
-    cb.set_label(label='Spacing (nm)', size=FS)
-    cb.ax.tick_params(labelsize=FS)
+    cbar = colorbar()
+    cbar.set_label(label='Spacing (nm)', size=FS)
+    cbar.ax.tick_params(labelsize=FS)
     #cb.vmin = 3 #  35.857139913762694
     #cb.vmax = 100# 79.53197165614256
 
