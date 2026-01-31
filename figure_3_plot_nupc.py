@@ -504,14 +504,14 @@ def _pca_figure(res: _NetRes)->None:
 nupc3d_resi, nupc3d_resi_means = resi_data.load_3d_with_means()
 nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
 
-trained_weights_resi_32 = torch.load('log/1767449867-0b3ce320f9213553e0b7d942d407268e8c3db4a4/phase_2/final_net.zip', map_location=torch.device('cpu'))
+trained_weights_resi_32 = torch.load('sample_logs/1767449867-0b3ce320f9213553e0b7d942d407268e8c3db4a4/phase_2/final_net.zip', map_location=torch.device('cpu'))
 res_resi_32 = _apply_net(nupc3d_resi, trained_weights_resi_32, 32)
 good_means_resi_32 = torch.stack(nupc3d_resi_means)[res_resi_32.indices,:]
 _plot_distance_vs_eccentricity(res_resi_32)
 plt.savefig('tmp/fig3_res32_spacing_v_eccentricity.svg')
 
 
-trained_weights_resi = torch.load('log/1766516868-66b60604c41adb3c784b829cbd0205da1b12c1cd/phase_2/final_net.zip', map_location=torch.device('cpu'))
+trained_weights_resi = torch.load('sample_logs/1766516868-66b60604c41adb3c784b829cbd0205da1b12c1cd/phase_2/final_net.zip', map_location=torch.device('cpu'))
 res_resi = _apply_net(nupc3d_resi, trained_weights_resi)
 good_means_resi = torch.stack(nupc3d_resi_means)[res_resi.indices,:]
 
@@ -529,7 +529,7 @@ plt.savefig('tmp/fig3_resi_pca.svg')
 CellNo=0
 
 nupc3d_bates, nupc3d_bates_means = mark_bates_data.load_3d_list_and_means()
-trained_weights_bates = torch.load('log/1766605809-a396351dc2c407f97a32efa35b421a9aa8d2de55/phase_2/final_net.zip', map_location=torch.device('cpu'))
+trained_weights_bates = torch.load('sample_logs/1766605809-a396351dc2c407f97a32efa35b421a9aa8d2de55/phase_2/final_net.zip', map_location=torch.device('cpu'))
 res_bates = _apply_net(nupc3d_bates[CellNo], trained_weights_bates)
 good_means_bates = torch.stack(nupc3d_bates_means[CellNo])[res_bates.indices,:]
 
