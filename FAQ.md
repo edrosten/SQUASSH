@@ -22,16 +22,22 @@ one of your structures in a patch, repeating along an axis. Otherwise there
 should just be a single instance of your structure.
 
 ## What factors in my data could mean that SQUASSH might perform poorly?
-To limit computational time we currently project the input data into six 2D
-images, with 3D data being encoded into these images as intensity. If you have
-a large, densely labelled biological structure and you wish to pick up internal
-as well as external structure, then six planes may not be enough, and it may be
-necessary to alter the rendering pipeline.
+
+We currently project the input data into three or six 2D images.  If you have a
+large, densely labelled biological structure and you wish to pick up internal
+as well as external structure, then six planes may not be enough to provide
+detail on the internal structure and it may be necessary to add a new rendering
+pipeline which uses more planes.
+
+To get started, look in [train_bunny.py](train_bunny.py) which performs
+training on the Stanford Bunny test dataset using single plane, 3 plane and 6
+plane rendering. 
+
 
 The other major limitation for SQUASSH analysis is background. SQUASSH assumes
-background to be part of the structure and will be included in the model. In
+background to be part of the structure and will include it in the model. In
 cases of very high background, this may become the dominant part of the output.
-If you have uniform background, you can subtract it before running SQUASH, but
+If you have uniform background, you can subtract it before running SQUASSH, but
 removing heavily nonuniform background is not trivial.  
 
 ## How do I perform my segmentation?
@@ -46,7 +52,8 @@ repeats of the structure visible in a patch.
 
 For most of the types of data we have used so far, a Gaussian blur plus
 thresholding is sufficient to separate out patches. If you wish to take a more
-sophisticated approach, a segmentation network such as Cellpose could be used
+sophisticated approach, a segmentation network such as
+[Cellpose](https://www.cellpose.org/) could be used
 to identify similar structures using either 3D data or maximum intensity
 projections. Once you have identified the areas of interest, you will either
 select out the localised positions in that structure (for an SMLM experiment)
@@ -65,9 +72,10 @@ the image where you believe the data is reliable and good quality. These can
 then be split into patches of the required size. An example of this is
 available in the code for pre-processing spectrin ring data.
 
-https://github.com/edrosten/SQUASSH/blob/main/data/leterrier_spectrin/__init__.py
-https://github.com/edrosten/SQUASSH/blob/main/data/dan_microtubules/__init__.py
-https://github.com/edrosten/SQUASSH/blob/main/data/segment_markup.py
+The relavant datasets are the [spectrin](data/leterrier_spectrin/__init__.py)
+and [microtubule](data/dan_microtubules/__init__.py) datasets. The
+implementation of segmentation is in
+[segment_markup.py](data/segment_markup.py).
 
 ## How do I pick the starting and final values of my input rendering blur?
 
@@ -97,18 +105,31 @@ There are a number of ways that you might choose to evaluate quality.
 
 1. Repeated runs of the same dataset allow you to test how reproducible the results are
 2. The proportion of data rejected can give insight into whether most of the
-   data can be successfully fitted by the type of model that you have picked. [HOW
-   DO YOU PICK UP PROPORTION OF DATA REJECTED?]
+   data can be successfully fitted by the type of model that you have picked.
+   The percentage of valid (i.e. not rejected) items is printed after every
+   epoch and saved to the log file.
 3. The size of the model rendering blur can help to give you insight into
    whether the fitting has been successful. If the rendering model blur remains
    high at the end of the optimisation, it means that the optimisation process
    has not been able to move fluorophores into a position that can be fitted
    successfully at a lower blur. This means that your model (of fluorophores +
-   heterogeneity) was not able to fit successfully to your data.  (2) and (3)
-   can be evaluated using montage viewing, which can be visualised using . [PUT
-   IN NOTEBOOK?]
+   heterogeneity) was not able to fit successfully to your data. 
 
-PUT IN EXAMPLE OF MONTAGE
+(2) and (3) can also be viewed by using the montage tool:
+```bash
+bash log_montage.sh <PATH_TO_LOG_DIRECTORY>
+```
+This will create a montage of input data, SQUASSH output and the difference for
+some of the data. The result will look like this:
+![montage](doc/montage.png)
+
+
+A red background corresponds to a rejected sample, and the meaning of the sub
+panels is:
+
+![montage detail](doc/montage-detail.png)
+
+
 
 ## How can I analyze SQUASSH results
 
@@ -117,15 +138,20 @@ being run. Generally speaking, an analysis will involve applying the trained
 network to the data once more, and recording the network outputs and performing
 some analysis on those.
 
-We have provided a number of complete examples, in the form of files used to
-generate some of the figures in the paper from the results of SQUASSH runs.
-See:
+We have provided a number of complete examples, 
+in the 
+[Colab notebook](https://colab.research.google.com/github/edrosten/squassh/blob/master/train_nupc.ipynb)
+and in the form of files used to
+generate some of the figures in the paper from the results of SQUASSH runs:
 
-FIXME THIS IS NOT COMPLETE UNTIL LATER
+- [Figure 2](figure_2_plot_nupc.py)
+- [Figure 3](figure_3_plot_nupc.py)
 
-https://github.com/edrosten/SQUASSH/blob/main/figure_2_plot_nupc.py
+
+
 
 ## How many fluorophores should I set per structure?
+
 As a general rule we would recommend, for SMLM experiments where the user
 wishes to achieve a probability density type output, between 5x and 30x the
 average number of localisations per input patch. For non-SMLM experiments one
@@ -137,7 +163,10 @@ perform your optimisation with very few fluorophores, and then re-seed the
 optimisation with many more once the fluorophores are in approximately the
 correct positions. This can achieve speed improvements of about a third of the
 length of the run, and so if many runs are planned may be worth doing. See
-https://github.com/edrosten/SQUASSH/blob/main/train_nupc.py
+the [nuclear pore complex](train_nupc.py) or the 
+[Colab
+notebook](https://colab.research.google.com/github/edrosten/squassh/blob/master/train_nupc.ipynb).
+
 
 An alternative approach is to set the number of fluorophores to exactly the
 number of fluorophores expected in the sample. However, it should be noted that
@@ -155,13 +184,13 @@ Selecting the correct heterogeneity description is an important step in ensuring
 
 | Heterogeneity name | Description | Factors optimised for global model | Factors optimised per observation | Files where used |
 | ------------------ | ----------- | ---------------------------------- | --------------------------------- | ---------------- |
-|Squash/stretch along an axis | Scales structure along an axis | Axis of scaling  | Scale | 
-| Repeating structure | Structure is observed multiple times within field of view | Axis of repeat | Number of repeats in field of view (constrained with set max and min) |  
-| Angle between copies | Two copies of repeat structure in field of view at angle to each other | Axis separating copies | Distance between copies, Angle of copies |
-| Circular harmonic deformation | Structure undergoes circular harmonic distortion around an axis. | Axis normal to the distortion | Contribution of each circular harmonic component (constrained at start as to how many circular harmonic components used). |
-| Continuous deformation across structure | Structure is deformed by a field set by vectors at each vertex of the input data cube and linearly interpolated between them. | N/A | Size and rotation of vector at each vertex.
-| Global scaling | Scales entire structure along all three axes equally.  | N/A | Scale of entire structure |
-| Individual point movement | All points within structure can move independently. Note: this is too unconstrained to be used unless data fit is already very close, should only be used after main optimisation. Must be heavily constrained. | N/A | Movement in all three axes per fluorophore, maximum amount of movement |
+|Squash/stretch along an axis | Scales structure along an axis | Axis of scaling  | Scale | [train_nupc.py](train_nupc.py)
+| Repeating structure | Structure is observed multiple times within field of view | Axis of repeat | Number of repeats in field of view (constrained with set max and min) | [train_spectrin.py](train_spectrin.py) [train_dan_microtubules.py](train_dan_microtubules.py)
+| Angle between copies | Two copies of repeat structure in field of view at angle to each other | Axis separating copies | Distance between copies, Angle of copies | [train_legant.py](train_legant.py)
+| Circular harmonic deformation | Structure undergoes circular harmonic distortion around an axis. | Axis normal to the distortion | Contribution of each circular harmonic component (constrained at start as to how many circular harmonic components used). | [train_spectrin.py](train_spectrin.py)
+| Continuous deformation across structure | Structure is deformed by a field set by vectors at each vertex of the input data cube and linearly interpolated between them. | N/A | Size and rotation of vector at each vertex. | [train_trichomes.py](train_trichomes.py)
+| Global scaling | Scales entire structure along all three axes equally.  | N/A | Scale of entire structure | [train_trichomes.py](train_trichomes.py)
+| Individual point movement | All points within structure can move independently. Note: this is too unconstrained to be used unless data fit is already very close, should only be used after main optimisation. Must be heavily constrained. | N/A | Movement in all three axes per fluorophore, maximum amount of movement | [train_nupc.py](train_nupc.py)
 
 
 
@@ -174,8 +203,6 @@ movement of individual fluorophores is unlikely to be visible in the data.
 Selection of the heterogeneity should be driven by careful examination of the
 data and/or theoretical predictions as to how the structure is expected to
 change.
-
-Need to specify both named data file and how specified in network.py
 
 ## I want to create a new heterogeneity description. How do I do it?
 
@@ -200,22 +227,7 @@ the same). 3D renderings are isosurfaces meaning that they are surfaces of
 uniform fluorophore probability density. This is similar to how Cryo-EM
 structures are displayed, where the output is an electron density.
 
-
 We would not generally ascribe significance to the sigma value in the final
 rendering, except to the extent that a high final rendering value may indicate
 that it has not been possible to successfully optimise the fine structure of
 the sample (see ‘How do I evaluate the quality of my SQUASSH analysis’).
-
-Put in section on mean vs modal repeat distance?
-
-Before tutorial section: If you are considering using SQUASSH and you aren’t
-sure if your data is suitable, you want to know more about how to set parameter
-values, or want to better understand the heterogeneity models available, please
-consult our FAQs. Below we go through how to clone the repository and run the
-nuclear pore analysis code. This is a great starting point if you want to use
-SQUASSH on your own data.
-
-A more detailed description of the input “suitable format” would be helpful
-(e.g. data size, type, normalized or not), as would a table explaining the
-models in network.py and indicating to what type of data each is best suited.
-fdsafds
