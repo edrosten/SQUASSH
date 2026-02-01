@@ -111,17 +111,17 @@ def process_data_and_plot_some_crap(data3d: List[Tensor], means: List[Tensor], d
     spacing = (positions[0]-positions[1]).abs()
 
     #0, 9, 
-    plt.subplots(figsize=(8*cm, 4*cm))
+    plt.subplots(figsize=(5.33333333*cm, 4*cm))
     clf()
     NIMS=3 # Number of sample images to select
 
     plotax = gcf().subplot_mosaic("""
-                0AAAAA
-                0AAAAA
-                1AAAAA
-                1AAAAA
-                2AAAAA
-                2AAAAA
+                0AAA
+                0AAA
+                1AAA
+                1AAA
+                2AAA
+                2AAA
             """)
 
     sca(plotax['A'])
@@ -277,7 +277,7 @@ plt.close('all')
 
 
 # Now scale the models by their size and save as ply files, and also split heatmaps
-def _save_renderings(net: network.GeneralPredictReconstruction, res: torch.Tensor, name: str)->None:
+def _save_renderings(net: network.GeneralPredictReconstruction, res: torch.Tensor, name: str, sigma:float)->None:
     pts, weights = (i.detach().cpu() for i in net.get_model())
     pts.requires_grad = False
     weights.requires_grad = False
@@ -294,30 +294,29 @@ def _save_renderings(net: network.GeneralPredictReconstruction, res: torch.Tenso
     rot = zx_flip @ so3_6D(torch.cat([net._parameterisation.get_axis().detach().cpu(), torch.tensor([1., 1, 1])]).unsqueeze(0))[0] # pylint: disable=protected-access
     pts_aligned = trn(rot @ trn(pts))
     top_mask = pts_aligned[:,2]>0
+    
 
+    nm_per_pix = 0.25
+    sb_r0 = 30
+    sb_r1 = sb_r0 +15
+    sb_c0 = 50
+    sb_c1 = sb_c0 + int(50 / nm_per_pix) # 50nm scalebar
 
-    top = render.render_batch_weights(pts_aligned[top_mask].unsqueeze(0)[...,0:2], torch.tensor([2.0]), weights[top_mask].unsqueeze(0), 0.25, 600)[0] 
-    bot = render.render_batch_weights(pts_aligned[top_mask.logical_not()].unsqueeze(0)[...,0:2], torch.tensor([2.0]), weights[top_mask.logical_not()].unsqueeze(0), 0.25, 600)[0]
+    top = render.render_batch_weights(pts_aligned[top_mask].unsqueeze(0)[...,0:2], torch.tensor([sigma]), weights[top_mask].unsqueeze(0), nm_per_pix, 600)[0] 
+    bot = render.render_batch_weights(pts_aligned[top_mask.logical_not()].unsqueeze(0)[...,0:2], torch.tensor([sigma]), weights[top_mask.logical_not()].unsqueeze(0), nm_per_pix, 600)[0]
+    
 
-    ratio = weights[top_mask].sum().item()/weights[top_mask.logical_not()].sum().item()
+    # fixed here https://github.com/matplotlib/matplotlib/issues/30438
+    top_rgb = (matplotlib.cm.hot(top/top.max())*255.9).astype(np.uint8)[...,0:3] # type: ignore[attr-defined]  # pylint: disable=no-member
+    bot_rgb = (matplotlib.cm.hot(bot/bot.max())*255.9).astype(np.uint8)[...,0:3] # type: ignore[attr-defined]  # pylint: disable=no-member
 
-    plt.clf()
-    plt.subplot(1,2,1)
-    plt.imshow(top, cmap='inferno')
-    plt.axis('off')
-    plt.title(f'z>0, relative intensity={ratio:0.3}')
-    plt.subplot(1,2,2)
-    plt.imshow(bot, cmap='inferno')
-    plt.title('z<0, relative intensity=1.0')
-    plt.axis('off')
-    plt.tight_layout()
-    plt.pause(.1)
-    plt.savefig('tmp/figure2_{name}_supp_heatmap.svg')
-    #plt.subplot(1,3,3, projection='3d')
-    #plt.gca().scatter(*trn(pts_aligned))
-    #plt.axis('square')
+    top_rgb[sb_r0:sb_r1, sb_c0:sb_c1,:]=255
+    bot_rgb[sb_r0:sb_r1, sb_c0:sb_c1,:]=255
 
+    
+    plt.imsave(f'tmp/figure2_{name}_projection_top.png', top_rgb)
+    plt.imsave(f'tmp/figure2_{name}_projection_bot.png', bot_rgb)
 
-_save_renderings(net_resi, res_resi, 'resi')
-_save_renderings(net_bates, res_bates, 'bates')
+_save_renderings(net_resi, res_resi, 'resi', 2.0)
+_save_renderings(net_bates, res_bates, 'bates', 3.0)
 
