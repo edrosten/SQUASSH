@@ -19,6 +19,7 @@ import mark_bates_data
 import train
 import device
 import save_ply
+import render
 from matrix import trn, euler
 from network import GeneralPredictReconstruction
 from localisation_data import LocalisationDataSetMultipleDan6
@@ -501,6 +502,61 @@ def _pca_figure(res: _NetRes)->None:
     plt.tight_layout()
     plt.pause(.1)
 
+
+
+
+def _pca_video(res: _NetRes, name:str)->None:
+    # Flip X and Z axes
+    R = _rotation_ring_to_xy(res).to(device.device)
+
+    intensities = res.net.get_model()[1].detach().to(device.device)
+
+
+    pca = _PCA(res.points_model)
+    Vh = pca.Vh.to(device.device)
+    centre = pca.centre.to(device.device)
+    stddev = pca.stddev.to(device.device)
+
+
+    _, darkest_first = intensities.sort()
+    intensities = intensities[darkest_first]
+    centre = centre[darkest_first,:]
+    Vh = Vh[:, darkest_first, :]
+
+    top_mask = (R @ centre.permute(1,0)).permute(1,0)[:,2] > 0
+    bot_mask = top_mask.logical_not()
+
+    vid = Path(f'tmp/pca_video_{name}_advanced_3s')
+    vid.mkdir()
+
+    for j, i in enumerate(tqdm(torch.arange(0, 1, 1/240))):
+        pos = torch.sin(i*torch.pi*2).item()
+        
+        plt.clf()
+        for c in range(3):
+
+            nm_per_pix = 0.25*4
+            pixels = 600//4
+            sigma=torch.tensor([2.0], device=device.device)
+            pts_aligned = (centre + pos * 3 * stddev[c] * Vh[c])@trn(R)
+
+            top = render.render_batch_weights(pts_aligned[top_mask].unsqueeze(0)[...,0:2], sigma, intensities[top_mask].unsqueeze(0), nm_per_pix, pixels)[0] 
+            bot = render.render_batch_weights(pts_aligned[bot_mask].unsqueeze(0)[...,0:2], sigma, intensities[bot_mask].unsqueeze(0), nm_per_pix, pixels)[0]
+
+            plt.subplot(2,3,c+1)
+            plt.imshow(top.cpu(), cmap='hot')
+            plt.axis('off')
+            plt.subplot(2,3,c+1+3)
+            plt.imshow(bot.cpu(), cmap='hot')
+            plt.axis('off')
+        plt.tight_layout()
+        plt.pause(.1)
+        plt.pause(.1)
+        plt.pause(.1)
+        plt.savefig(vid/f'{j:05}.png')
+
+
+
 nupc3d_resi, nupc3d_resi_means = resi_data.load_3d_with_means()
 nupc3d_resi = [t.to(device.device).half() for t in resi_data.load_3d()]
 
@@ -538,6 +594,8 @@ random.seed(3)
 _plot_angular(good_means_bates, res_bates)
 plt.savefig('tmp/fig3_bates_angular.svg')
 
+_pca_video(res_bates, 'bates')
+_pca_video(res_resi, 'resi')
 
 
 print("RESI data")
