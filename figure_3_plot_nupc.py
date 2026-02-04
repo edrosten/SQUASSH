@@ -471,11 +471,11 @@ def _pca_figure(res: _NetRes)->None:
     alpha=0.1
     plt.clf()
     for I in range(3):
-        component = Vh[I]*stddev[I]*3
+        component = Vh[I]*stddev[I]*5
 
         plt.subplot(2,N,I+1)
-        plt.scatter(*(R @ (centre          )[top_mask,:].permute(1,0))[0:2,:], c=intensities[top_mask], alpha=alpha, cmap='Greys', edgecolors='none')  # type: ignore[misc]
-        plt.scatter(*(R @ (centre+component)[top_mask,:].permute(1,0))[0:2,:], c=intensities[top_mask], alpha=alpha, cmap='Oranges', edgecolors='none')  # type: ignore[misc]
+        plt.scatter(*(R @ (centre          )[top_mask,:].permute(1,0))[0:2,:], c=intensities[top_mask], alpha=alpha, cmap='Greys', edgecolors='none', clip_on=False)  # type: ignore[misc]
+        plt.scatter(*(R @ (centre+component)[top_mask,:].permute(1,0))[0:2,:], c=intensities[top_mask], alpha=alpha, cmap='Oranges', edgecolors='none', clip_on=False)  # type: ignore[misc]
         plt.xlabel(f'Component {I+1}', fontsize=FS)
         plt.axis('square')
         plt.axis((-65,65,-65,65))
@@ -488,8 +488,8 @@ def _pca_figure(res: _NetRes)->None:
             plt.ylabel('Upper ring', fontsize=FS)
 
         plt.subplot(2,N,I+1+N)
-        plt.scatter(*(R @ (centre          )[top_mask.logical_not(),:].permute(1,0))[0:2,:], c=intensities[top_mask.logical_not()], alpha=alpha, cmap='Greys', edgecolors='none')  # type: ignore[misc]
-        plt.scatter(*(R @ (centre+component)[top_mask.logical_not(),:].permute(1,0))[0:2,:], c=intensities[top_mask.logical_not()], alpha=alpha, cmap='Oranges', edgecolors='none')  # type: ignore[misc]
+        plt.scatter(*(R @ (centre          )[top_mask.logical_not(),:].permute(1,0))[0:2,:], c=intensities[top_mask.logical_not()], alpha=alpha, cmap='Greys', edgecolors='none', clip_on=False)  # type: ignore[misc]
+        plt.scatter(*(R @ (centre+component)[top_mask.logical_not(),:].permute(1,0))[0:2,:], c=intensities[top_mask.logical_not()], alpha=alpha, cmap='Oranges', edgecolors='none', clip_on=False)  # type: ignore[misc]
         plt.axis('square')
         plt.axis((-65,65,-65,65))
         for line in ['top', 'bottom', 'left', 'right']:
@@ -594,8 +594,8 @@ random.seed(3)
 _plot_angular(good_means_bates, res_bates)
 plt.savefig('tmp/fig3_bates_angular.svg')
 
-_pca_video(res_bates, 'bates')
-_pca_video(res_resi, 'resi')
+#_pca_video(res_bates, 'bates')
+#_pca_video(res_resi, 'resi')
 
 
 print("RESI data")
@@ -608,6 +608,42 @@ print("Bates data")
 print("----------")
 print("")
 _print_ring_size_ratio_top_bottom(res_bates)
+
+
+def _render(pts: torch.Tensor, weights: None|Tensor)->tuple[Tensor, Tensor]:
+    top_mask = pts[:,2] > 0
+    bot_mask = top_mask.logical_not()
+    if weights is None:
+        weights = torch.ones(top_mask.shape[0])
+    weights = weights.to(pts)
+    sigma = torch.tensor([2.0]).to(pts)
+    nm_per_pix = 0.25
+
+    top = render.render_batch_weights(pts[top_mask].unsqueeze(0)[...,0:2], sigma, weights[top_mask].unsqueeze(0), nm_per_pix, 600)[0] 
+    bot = render.render_batch_weights(pts[bot_mask].unsqueeze(0)[...,0:2], sigma, weights[bot_mask].unsqueeze(0), nm_per_pix, 600)[0] 
+
+    return top, bot
+
+def _renderings(ind: int, data: list[Tensor], res: _NetRes)->None:
+
+    pts_img = res.points_img[ind]
+    pts_data = data[res.indices[ind]]
+    
+    
+    dat_t, dat_b = [ i.cpu(). numpy() for i in _render(pts_data.to(device.device), None)]
+    mod_t, mod_b = [ i.cpu().numpy() for i in  _render(pts_img.to(device.device), res.net.get_model()[1].to(device.device)) ]
+
+    plt.imsave(f'tmp/figure3_{ind}_data_top.png', (matplotlib.cm.hot(dat_t/dat_t.max())*255.9).astype(np.uint8)[...,0:3])  # type: ignore[attr-defined]  # pylint: disable=no-member
+    plt.imsave(f'tmp/figure3_{ind}_data_bot.png', (matplotlib.cm.hot(dat_b/dat_b.max())*255.9).astype(np.uint8)[...,0:3])  # type: ignore[attr-defined]  # pylint: disable=no-member
+    plt.imsave(f'tmp/figure3_{ind}_modl_top.png', (matplotlib.cm.hot(mod_t/mod_t.max())*255.9).astype(np.uint8)[...,0:3])  # type: ignore[attr-defined]  # pylint: disable=no-member
+    plt.imsave(f'tmp/figure3_{ind}_modl_bot.png', (matplotlib.cm.hot(mod_b/mod_b.max())*255.9).astype(np.uint8)[...,0:3])  # type: ignore[attr-defined]  # pylint: disable=no-member
+
+    save_ply.save_pointcloud_as_mesh(f'tmp/figure3_{ind}_model.ply', pts_img.cpu(),  res.net.get_model()[1].cpu(), 2.0, 0.1)
+
+# some examples with reasonably complete rings and enough 
+# distortion to illustrate the distortion model
+_renderings(635,  nupc3d_resi, res_resi)
+_renderings(752,  nupc3d_resi, res_resi)
 
 
 
