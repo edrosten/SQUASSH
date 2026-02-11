@@ -476,7 +476,7 @@ def _pca_figure(res: _NetRes)->None:
         plt.subplot(2,N,I+1)
         plt.scatter(*(R @ (centre          )[top_mask,:].permute(1,0))[0:2,:], c=intensities[top_mask], alpha=alpha, cmap='Greys', edgecolors='none', clip_on=False)  # type: ignore[misc]
         plt.scatter(*(R @ (centre+component)[top_mask,:].permute(1,0))[0:2,:], c=intensities[top_mask], alpha=alpha, cmap='Oranges', edgecolors='none', clip_on=False)  # type: ignore[misc]
-        plt.xlabel(f'Component {I+1}', fontsize=FS)
+        plt.xlabel(f'{"" if I > 0 else "PCA Component "}{I+1}', fontsize=FS)
         plt.axis('square')
         plt.axis((-65,65,-65,65))
         for line in ['top', 'bottom', 'left', 'right']:
@@ -485,7 +485,7 @@ def _pca_figure(res: _NetRes)->None:
         plt.gca().set_yticks([])
         plt.gca().xaxis.set_label_position('top')
         if I == 0:
-            plt.ylabel('Upper ring', fontsize=FS)
+            plt.ylabel('NR', fontsize=FS)
 
         plt.subplot(2,N,I+1+N)
         plt.scatter(*(R @ (centre          )[top_mask.logical_not(),:].permute(1,0))[0:2,:], c=intensities[top_mask.logical_not()], alpha=alpha, cmap='Greys', edgecolors='none', clip_on=False)  # type: ignore[misc]
@@ -497,7 +497,7 @@ def _pca_figure(res: _NetRes)->None:
         plt.gca().set_xticks([])
         plt.gca().set_yticks([])
         if I == 0:
-            plt.ylabel('Lower ring', fontsize=FS)
+            plt.ylabel('CR', fontsize=FS)
     
     plt.tight_layout()
     plt.pause(.1)
