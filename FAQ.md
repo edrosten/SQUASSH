@@ -129,6 +129,11 @@ panels is:
 
 ![montage detail](doc/montage-detail.png)
 
+An example of a poor quality fit with a high output rendering blur might look 
+like the following example:
+
+![bad fit](doc/bad.png)
+
 
 
 ## How can I analyze SQUASSH results
@@ -145,7 +150,6 @@ and in the form of files used to
 generate some of the figures in the paper from the results of SQUASSH runs:
 
 - [Figure 2](figure_2_plot_nupc.py)
-- [Figure 3](figure_3_plot_nupc.py)
 
 
 
