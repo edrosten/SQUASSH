@@ -556,6 +556,12 @@ def _pca_video(res: _NetRes, name:str)->None:
             plt.gca().set_yticklabels([])
         plt.subplot(2,3,1)
         plt.ylabel('NR')
+        plt.xlabel('PCA Component 1')
+        plt.gca().xaxis.set_label_position('top')
+        for i in (2,3):
+            plt.subplot(2,3,i)
+            plt.gca().xaxis.set_label_position('top')
+            plt.xlabel(f'{i}')
         plt.subplot(2,3,4)
         plt.ylabel('CR')
         plt.gcf().canvas.draw()
