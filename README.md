@@ -6,7 +6,8 @@ with multiple images of the same type of structure (below we will refer to each
 image of the same type of structure as a patch). SQUASSH analysis allows you to
 extract both the shape of the structure (as a distribution of fluorophore
 positions) and how it varies from observation to observation (the
-heterogeneity). 
+heterogeneity). If you have questions about how to prepare your data or how
+SQUASSH works in practice, [check out our FAQs](FAQ.md).
 
 The bioarXiv paper is
 [here](https://www.biorxiv.org/content/10.1101/2025.08.06.668903v1). Please
