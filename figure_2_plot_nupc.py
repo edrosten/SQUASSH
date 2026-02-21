@@ -29,7 +29,7 @@ FIGSCALE=2
 cm = FIGSCALE/2.54  # centimeters in inches, plus an overall figure scaling
 FS=7*FIGSCALE
 
-def process_data_and_plot_some_crap(data3d: List[Tensor], means: List[Tensor], directory: Path)->tuple[Tensor, float, network.GeneralPredictReconstruction]:
+def process_data_and_plot_some_crap(data3d: List[Tensor], means: List[Tensor], directory: Path)->tuple[Tensor, float, network.GeneralPredictReconstruction, Tensor]:
     '''lol'''
     nupc3d = [t.to(device.device).half() for t in data3d]
     
@@ -66,9 +66,10 @@ def process_data_and_plot_some_crap(data3d: List[Tensor], means: List[Tensor], d
     recons: List[List[torch.Tensor]] = []
     results_map: List[int] = []
     bad_indices: List[int] = []
+    all_points_img_space: List[Tensor] = [] 
     with torch.no_grad():
         for i, (mean, batch) in enumerate(zip(means, tqdm.tqdm(loader))):
-            _,R,_,is_valid,parameters = net.process_input(batch, min_sigma_nm=fwhm_to_sigma(fwhm_t))
+            t,r,_,is_valid,parameters = net.process_input(batch, min_sigma_nm=fwhm_to_sigma(fwhm_t))
             recon, _, _, _ = net(batch, min_sigma_nm=fwhm_to_sigma(fwhm_t)) 
             scale = parameterisation.max_stretch_factor_axis**torch.tanh(parameters[:,0]).cpu()
             expand = parameterisation.max_stretch_factor_expand**torch.tanh(parameters[:,1]).cpu()
@@ -76,16 +77,22 @@ def process_data_and_plot_some_crap(data3d: List[Tensor], means: List[Tensor], d
             # model scaled along axis.
             # R multiplies point as a column into camera space
 
-            z_ax = torch.tensor([[[0,0,-1.]]]).to(R)
+            z_ax = torch.tensor([[[0,0,-1.]]]).to(r)
 
-            angle = (z_ax @ R @ parameterisation.get_axis().unsqueeze(1).unsqueeze(0)).acos().cpu().squeeze(2).squeeze(1)* 180 / torch.pi
+            angle = (z_ax @ r @ parameterisation.get_axis().unsqueeze(1).unsqueeze(0)).acos().cpu().squeeze(2).squeeze(1)* 180 / torch.pi
 
+            points, _, _ = parameterisation(*net.get_model(), parameters)
+            batch_size = t.shape[0]
+            Nv = points.shape[1]
+            t_per_point = t.unsqueeze(1).expand(batch_size, Nv, 3)
+            points_img_space = trn(r @ trn(points)) + t_per_point
 
             if is_valid.item()> .5:
                 if scale.item() > .8:
                     results.append(torch.cat((mean, scale, expand, angle)))
                     results_map.append(i)
                     recons.append(recon)
+                    all_points_img_space.append(points_img_space.squeeze(0))
             else:
                 bad_indices.append(i)
 
@@ -201,12 +208,12 @@ def process_data_and_plot_some_crap(data3d: List[Tensor], means: List[Tensor], d
 
     pause(.1)
 
-    return res_orig, spacing.item(), net
+    return res_orig, spacing.item(), net, torch.stack(all_points_img_space)
 
 resi_run_dir = Path("sample_logs/1711985336-4d7cc96effb6e4740278bd39261837986110b4a2/run-000-phase_1")
 resi_data3d, resi_means = resi_data.load_3d_with_means()
 random.seed(29)
-res_resi, spacing_resi, net_resi = process_data_and_plot_some_crap(resi_data3d, resi_means, resi_run_dir)
+res_resi, spacing_resi, net_resi, img_pts_resi = process_data_and_plot_some_crap(resi_data3d, resi_means, resi_run_dir)
 
 pause(.1)
 pause(.1)
@@ -220,7 +227,7 @@ stuff = mark_bates_data.load_3d_list_and_means()
 bates_data3d, bates_means = stuff[0][0], stuff[1][0]
 
 random.seed(4)
-res_bates, spacing_bates, net_bates = process_data_and_plot_some_crap(bates_data3d, bates_means, bates_run_dir)
+res_bates, spacing_bates, net_bates, img_pts_bates = process_data_and_plot_some_crap(bates_data3d, bates_means, bates_run_dir)
 
 pause(.1)
 pause(.1)
@@ -277,7 +284,7 @@ plt.close('all')
 
 
 # Now scale the models by their size and save as ply files, and also split heatmaps
-def _save_renderings(net: network.GeneralPredictReconstruction, res: torch.Tensor, name: str, sigma:float)->None:
+def _save_renderings(net: network.GeneralPredictReconstruction, res: torch.Tensor, img_pts: Tensor, name: str, sigma:float)->None:
     pts, weights = (i.detach().cpu() for i in net.get_model())
     pts.requires_grad = False
     weights.requires_grad = False
@@ -287,13 +294,16 @@ def _save_renderings(net: network.GeneralPredictReconstruction, res: torch.Tenso
     S=S.detach()
     S.requires_grad = False
     pts = trn(S@trn(pts))
-    save_ply.save_pointcloud_as_mesh(f"tmp/figure2_{name}_3d.ply", pts, weights, 2.0, 0.1, 100)
+    #save_ply.save_pointcloud_as_mesh(f"tmp/figure2_{name}_3d.ply", pts, weights, 2.0, 0.1, 100)
 
 
     zx_flip=euler(torch.tensor([1*torch.pi/2]), 'y')[0]
     rot = zx_flip @ so3_6D(torch.cat([net._parameterisation.get_axis().detach().cpu(), torch.tensor([1., 1, 1])]).unsqueeze(0))[0] # pylint: disable=protected-access
     pts_aligned = trn(rot @ trn(pts))
-    top_mask = pts_aligned[:,2]>0
+    #top_mask = pts_aligned[:,2]>0
+
+    #Figure out which is the upper ring from the points in image space 
+    top_mask = (img_pts[:,:,2].cpu() > 0).to(torch.float32).mean(0) > 0.5
     
 
     nm_per_pix = 0.25
@@ -317,6 +327,6 @@ def _save_renderings(net: network.GeneralPredictReconstruction, res: torch.Tenso
     plt.imsave(f'tmp/figure2_{name}_projection_top.png', top_rgb)
     plt.imsave(f'tmp/figure2_{name}_projection_bot.png', bot_rgb)
 
-_save_renderings(net_resi, res_resi, 'resi', 2.0)
-_save_renderings(net_bates, res_bates, 'bates', 3.0)
+_save_renderings(net_resi, res_resi, img_pts_resi, 'resi', 2.0)
+_save_renderings(net_bates, res_bates, img_pts_bates, 'bates', 3.0)
 

@@ -118,6 +118,7 @@ def _PCA(points:Tensor)->_PCAResult:
 class _NetRes:
     points_img: Tensor
     points_model: Tensor
+    rotations: Tensor
     indices: list[int]
     images: list[list[Tensor]]
     data: list[list[Tensor]]
@@ -143,6 +144,7 @@ def _apply_net(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->_NetRe
     ind_list = []
     img_list = []
     data_list = []
+    rotations = []
 
     with torch.no_grad():
         for index,datum in enumerate(tqdm(loader)):
@@ -169,10 +171,12 @@ def _apply_net(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->_NetRe
                 ind_list.append(index)
                 img_list.append(imgs)
                 data_list.append(datum)
+                rotations.append(r.squeeze().cpu())
 
     return _NetRes(
         points_img=torch.stack(pts_img_list, 0), 
         points_model=torch.stack(pts_model_list, 0), 
+        rotations = torch.stack(rotations, 0),
         indices=ind_list, 
         images=img_list,
         data=data_list,
@@ -193,6 +197,8 @@ def _segment_top_ring(res: _NetRes)->Tensor:
 
 def _print_ring_size_ratio_top_bottom(res: _NetRes)->None:
     top_mask = _segment_top_ring(res)
+    top_mask = res.points_img[0,:,2] > 0 # About 99% correct FIXME?
+
     pts_xy = (res.points_model @ trn(_rotation_ring_to_xy(res)))[:,:,0:2]
 
 
@@ -273,30 +279,52 @@ def _plot_distance_vs_eccentricity(res: _NetRes)->None:
     distances = (pts-closest).pow(2).sum(-1).sqrt()
     
 
-    top_mask = (R @ baseline_model.permute(1,0)).permute(1,0)[:,2] > 0
-    bot_mask = top_mask.logical_not()
+    def _tmp_plot()->None:
+        top_mask = res.points_img[0,:,2] > 0
+        bot_mask = top_mask.logical_not()
 
-    plt.figure()
-    plt.subplot(1,1,1,projection='3d')
-    plt.gca().scatter(*baseline_model[top_mask].permute(1,0))
-    plt.gca().scatter(*baseline_model[bot_mask].permute(1,0))
-    plt.title('Check top/bottom segmentation')
+        plt.figure()
+        plt.subplot(1,1,1,projection='3d')
+        plt.gca().scatter(*baseline_model[top_mask].permute(1,0))
+        plt.gca().scatter(*baseline_model[bot_mask].permute(1,0))
+        plt.title('Check top/bottom segmentation')
+    _tmp_plot()
 
-    std_dist_top = distances[:,top_mask].std(1)
-    std_dist_bot = distances[:,bot_mask].std(1)
+    #std_dist_top = distances[:,top_mask].std(1)
+    #std_dist_bot = distances[:,bot_mask].std(1)
 
-    cov_top = _cov(pts[:,top_mask,0:2])
-    cov_bot = _cov(pts[:,bot_mask,0:2])
+    #cov_top = _cov(pts[:,top_mask,0:2])
+    #cov_bot = _cov(pts[:,bot_mask,0:2])
+
+    cov_top = torch.zeros(len(pts), 2, 2)
+    cov_bot = torch.zeros(len(pts), 2, 2)
+    std_dist_top = torch.zeros(len(pts))
+    std_dist_bot = torch.zeros(len(pts))
+
+    for ind in range(len(pts)):
+        # We don't know which way up underlying model is, and it could be rotated
+        # either way up and differently in any given instance since the fit is so
+        # flexible. So, get the mask from the final fitted posititons in image spae
+        # and use those on the rotated underlying model
+        mask_top = res.points_img[ind,:,2] > 0
+        mask_bot = mask_top.logical_not()
+
+        cov_top[ind,...] = _cov(pts[ind, mask_top,0:2].unsqueeze(0)).squeeze(0)
+        cov_bot[ind,...] = _cov(pts[ind, mask_bot,0:2].unsqueeze(0)).squeeze(0)
+
+        std_dist_top[ind] = distances[ind, mask_top].std(0)
+        std_dist_bot[ind] = distances[ind, mask_bot].std(0)
+
 
     _, ratio_top = _std_and_ratio(cov_top)
     _, ratio_bot = _std_and_ratio(cov_bot)
        
     
-    for ind, fit in enumerate(pts):
-        el_top = torch.tensor(cv2.fitEllipse(fit[top_mask,0:2].numpy())[1])
-        el_bot = torch.tensor(cv2.fitEllipse(fit[bot_mask,0:2].numpy())[1])
-        ratio_top[ind] = el_top.min()/el_top.max()
-        ratio_bot[ind] = el_bot.min()/el_bot.max()
+    #for ind, fit in enumerate(pts):
+    #    el_top = torch.tensor(cv2.fitEllipse(fit[top_mask,0:2].numpy())[1])
+    #    el_bot = torch.tensor(cv2.fitEllipse(fit[bot_mask,0:2].numpy())[1])
+    #    ratio_top[ind] = el_top.min()/el_top.max()
+    #    ratio_bot[ind] = el_bot.min()/el_bot.max()
 
 
 
@@ -463,7 +491,9 @@ def _pca_figure(res: _NetRes)->None:
     Vh = Vh[:, darkest_first, :]
 
 
-    top_mask = (R @ centre.permute(1,0)).permute(1,0)[:,2] > 0
+    # Can't do it per-sample, so pick the points that are on average above the
+    # half way mark
+    top_mask = (res.points_img[:,darkest_first,2] > 0).sum(0) > len(intensities)/2
 
     plt.subplots(figsize=(8*cm, 4*cm))
     
@@ -523,7 +553,11 @@ def _pca_video(res: _NetRes, name:str)->None:
     centre = centre[darkest_first,:]
     Vh = Vh[:, darkest_first, :]
 
-    top_mask = (R @ centre.permute(1,0)).permute(1,0)[:,2] > 0
+
+
+    # Can't do it per-sample, so pick the points that are on average above the
+    # half way mark
+    top_mask = (res.points_img[:,darkest_first,2] > 0).sum(0) > len(intensities)/2
     bot_mask = top_mask.logical_not()
 
     vid = Path(f'tmp/pca_video_{name}_advanced_3s')
@@ -595,7 +629,7 @@ _plot_angular(good_means_bates, res_bates)
 plt.savefig('tmp/fig3_bates_angular.svg')
 
 #_pca_video(res_bates, 'bates')
-#_pca_video(res_resi, 'resi')
+_pca_video(res_resi, 'resi')
 
 
 print("RESI data")
