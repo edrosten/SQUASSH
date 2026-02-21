@@ -557,7 +557,7 @@ def _pca_video(res: _NetRes, name:str)->None:
 
     # Can't do it per-sample, so pick the points that are on average above the
     # half way mark
-    top_mask = (res.points_img[:,darkest_first,2] > 0).sum(0) > len(intensities)/2
+    top_mask = (res.points_img[:,darkest_first.cpu(),2].cpu() > 0).sum(0) > len(intensities)/2
     bot_mask = top_mask.logical_not()
 
     vid = Path(f'tmp/pca_video_{name}_advanced_3s')
