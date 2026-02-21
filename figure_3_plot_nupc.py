@@ -562,10 +562,9 @@ def _pca_video(res: _NetRes, name:str)->None:
 
     vid = Path(f'tmp/pca_video_{name}_advanced_3s')
     vid.mkdir()
-
+    plt.subplots(constrained_layout=True)
     for j, i in enumerate(tqdm(torch.arange(0, 1, 1/240))):
         pos = torch.sin(i*torch.pi*2).item()
-        
         plt.clf()
         for c in range(3):
 
@@ -579,16 +578,29 @@ def _pca_video(res: _NetRes, name:str)->None:
 
             plt.subplot(2,3,c+1)
             plt.imshow(top.cpu(), cmap='hot')
-            plt.axis('off')
+            plt.gca().set_xticks([])
+            plt.gca().set_xticklabels([])
+            plt.gca().set_yticks([])
+            plt.gca().set_yticklabels([])
             plt.subplot(2,3,c+1+3)
             plt.imshow(bot.cpu(), cmap='hot')
-            plt.axis('off')
-        plt.tight_layout()
-        plt.pause(.1)
-        plt.pause(.1)
-        plt.pause(.1)
+            plt.gca().set_xticks([])
+            plt.gca().set_xticklabels([])
+            plt.gca().set_yticks([])
+            plt.gca().set_yticklabels([])
+        plt.subplot(2,3,1)
+        plt.ylabel('NR')
+        plt.xlabel('PCA Component 1')
+        plt.gca().xaxis.set_label_position('top')
+        for i in (2,3):
+            plt.subplot(2,3,i)
+            plt.gca().xaxis.set_label_position('top')
+            plt.xlabel(f'{i}')
+        plt.subplot(2,3,4)
+        plt.ylabel('CR')
+        plt.gcf().canvas.draw()
+        plt.gcf().canvas.flush_events()
         plt.savefig(vid/f'{j:05}.png')
-
 
 
 nupc3d_resi, nupc3d_resi_means = resi_data.load_3d_with_means()
