@@ -41,7 +41,7 @@ def _main()->None:
     )
     
     params_initial = train.TrainingParameters()
-    params_initial.batch_size = 50 
+    params_initial.batch_size = 10
     params_initial.validity_weight=rejection
 
     # Optimisation parameters
@@ -57,13 +57,13 @@ def _main()->None:
     # A lower learning rate can be used for the whole optimisation at the cost of a longer run time.
 
     params_initial.schedule[0].epochs = 1500
-    params_initial.schedule[0].initial_psf = 15*nm_per_pixel_xy
-    params_initial.schedule[0].final_psf = 3*nm_per_pixel_xy
+    params_initial.schedule[0].initial_psf = 65
+    params_initial.schedule[0].final_psf = 13
     params_initial.schedule[0].psf_step_every= 100
     params_initial.schedule[0].initial_lr= 0.0001
     params_initial.schedule[0].final_lr= 0.00005
 
-    dataset_initial = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=8, device=device.device)
+    dataset_initial = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=1, device=device.device)
 
 
     # torch dynamo optimises speed performance
