@@ -25,59 +25,54 @@ def _main()->None:
     nupc3d = [t.to(device.device).half() for t in resi_data.load_3d()]
     #nupc3d = [t.to(device.device).half() for l in mark_bates_data.load_3d_list() for t in l]
 
-    mult = 20
-    scatter = 0.01
-
-    SCALE=1.3
+    
+    # the rejection parameters is a weighting for how likely the optimisation is to reject a given patch based on quality
+    # if you want the model to reject less, make the rejection parameter higher
+    # if you want the model to reject more, make the rejection parameter lower
     rejection = 1.0
 
+    # Patch size here is 64x64x32????????????????????????????????????????
+    # z_scale is difference in scaling between xy axis and z axis
     data_parameters = train.DataParametersXYYZ(
         image_size_xy = 64,
         image_size_z = 32,
-        nm_per_pixel_xy = 3*SCALE,
+        nm_per_pixel_xy = 3.9,
         z_scale = 2
     )
     
     params_initial = train.TrainingParameters()
-    params_initial.batch_size = 160 
+    params_initial.batch_size = 50 
     params_initial.validity_weight=rejection
 
-    params_initial.schedule[0].epochs = 90
-    params_initial.schedule[0].initial_psf = 50*SCALE
-    params_initial.schedule[0].final_psf = 26*SCALE
-    params_initial.schedule[0].psf_step_every= 30
-    params_initial.schedule[0].initial_lr= 0.0001
-    params_initial.schedule[0].final_lr= 0.0001
+    # Optimisation parameters
 
-    params_initial.schedule.append(train.TrainingSegment())
-    params_initial.schedule[1].epochs = 300
-    params_initial.schedule[1].initial_psf = 19*SCALE
-    params_initial.schedule[1].final_psf = 10.0*SCALE
-    params_initial.schedule[1].psf_step_every= 100
-    params_initial.schedule[1].initial_lr= 0.0001
-    params_initial.schedule[1].final_lr= 0.0001
+    # The number of epochs needs to be set so that the system has reached a stable state by the time the optimisation terminates
+    # If you want to check this ********
+
+    # The blur reduction schedule below is not the fastest (see train_nupc.py for an optimised one) but is designed to be single step and easy 
+    # to understand. The main limiting factors for speed are the number of points in the model (here 700) and the number of PSF steps taken
+    # Faster optimisation can be achieved by optimising an initial model with fewer points and then re-seeding.
+
+    # The learning rate is set to allow faster optimisation at the beginning of the run, when gradients are likely to be steeper.
+    # A lower learning rate can be used for the whole optimisation at the cost of a longer run time.
+
+    params_initial.schedule[0].epochs = 1500
+    params_initial.schedule[0].initial_psf = 15*nm_per_pixel_xy
+    params_initial.schedule[0].final_psf = 3*nm_per_pixel_xy
+    params_initial.schedule[0].psf_step_every= 100
+    params_initial.schedule[0].initial_lr= 0.0001
+    params_initial.schedule[0].final_lr= 0.00005
 
     dataset_initial = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=8, device=device.device)
 
 
-    params_refine = train.TrainingParameters()
-    params_refine.batch_size = 10
-    params_refine.validity_weight=rejection
-
-    params_refine.schedule[0].epochs = 1000
-    params_refine.schedule[0].initial_psf = 10.0*SCALE
-    params_refine.schedule[0].final_psf = 10.0*SCALE
-    params_refine.schedule[0].psf_step_every= 300
-    params_refine.schedule[0].initial_lr= 0.0002
-    params_refine.schedule[0].final_lr= 0.00005
-
-    dataset_refine = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=1, device=device.device)
-
+    # torch dynamo optimises speed performance
+    # resetting the torch compiler is advisable as it is occasionally prone to writing data into the compiled code if this is not done
     torch._dynamo.config.cache_size_limit=512  # pylint: disable=protected-access
-
     torch.compiler.reset()
 
-    net, parameterisation =network.PredictReconstructionStretchExpandValidDan6(model_size=35, **vars(data_parameters), data=nupc3d)
+    # This sets the size of the model and the parameters of the heterogeneity
+    net, parameterisation =network.PredictReconstructionStretchExpandValidDan6(model_size=700, **vars(data_parameters), data=nupc3d)
     parameterisation.max_stretch_factor_axis = 2.0
     parameterisation.max_stretch_factor_expand = 1.0
     net.to(device.device)
@@ -88,23 +83,6 @@ def _main()->None:
     fast = cast(network.GeneralPredictReconstruction, torch.compile(net))
     train.retrain(fast, dataset_initial, params_initial, 'phase_0')
     
-    scale = net.get_model()[0].abs().max().item()
-    
-    old_pts, old_weights = (j.detach() for j in net.get_model())
-
-    new_pts = torch.nn.functional.interpolate(old_pts.unsqueeze(0).unsqueeze(0), scale_factor=[mult,1]).squeeze(0).squeeze(0)
-    new_pts += torch.randn(new_pts.shape, device=device.device) * scale * scatter
-
-    new_weights = torch.nn.functional.interpolate(old_weights.unsqueeze(0).unsqueeze(0), scale_factor=mult).squeeze(0).squeeze(0)
-    
-    net.set_model(new_pts, new_weights)
-    net._model_intensities.requires_grad=True  # pylint: disable=protected-access
-    parameterisation.max_stretch_factor_expand = 1.3
-    
-    torch.compiler.reset() # Otherwise it crashes on torch 2.7
-    fast = cast(network.GeneralPredictReconstruction, torch.compile(net))
-    train.retrain(fast, dataset_refine, params_refine, 'phase_1')
-
         
 if __name__ == "__main__":
     _main()
