@@ -195,68 +195,34 @@ def _segment_top_ring(res: _NetRes)->Tensor:
 
 
 
-def _elfit_radii(pts: Tensor)->Tensor:
-    assert len(pts.shape) == 2
-    assert pts.shape[1] == 2
-    el = cv2.fitEllipse(pts.clone().numpy())
-    # el[0] is centre [xy]
-    # el[1] is diameter [a,b] (usually a<b)
-    # el[2] is angle of a, want angle of b
-    assert el[1][0] <= el[1][1]
-    return torch.tensor(el[1])/2
-
-
 def _print_ring_size_ratio_top_bottom(res: _NetRes)->None:
     top_mask = _segment_top_ring(res)
     top_mask = res.points_img[0,:,2] > 0 # About 99% correct FIXME?
-    bot_mask = top_mask.logical_not()
 
     pts_xy = (res.points_model @ trn(_rotation_ring_to_xy(res)))[:,:,0:2]
 
-    stds_l = []
-    ratio_l = []
 
-    for p in pts_xy:
-        rs_top = _elfit_radii(p[top_mask,:].clone())
-        rs_bot = _elfit_radii(p[bot_mask,:].clone())
-        
-        stds_l.append((rs_top.prod().sqrt().item(), rs_bot.prod().sqrt().item()))
-        ratio_l.append(((rs_top[0]/rs_top[1]).item(), (rs_bot[0]/rs_bot[1]).item()))
+    cov_top = _cov(pts_xy[:,top_mask,:])
+    cov_bot = _cov(pts_xy[:,top_mask.logical_not(),:])
 
-    stds = torch.tensor(stds_l)
-    ratio = torch.tensor(ratio_l)
+    covs = torch.stack([cov_top, cov_bot], 1)
 
-#    cov_top = _cov(pts_xy[:,top_mask,:])
-#    cov_bot = _cov(pts_xy[:,top_mask.logical_not(),:])
-#
-#    covs = torch.stack([cov_top, cov_bot], 1)
-#
-#    # Std dev (variance) as trace of covariance matrix, equivlaent to RMS radius
-#    stds = covs.diagonal(offset=0, dim1=-1, dim2=-2).sum(-1).sqrt()
-#
-#    principal_axes=torch.linalg.eigvalsh(covs).sqrt() # pylint: disable=not-callable
-#    ratio = principal_axes[...,0]/principal_axes[...,1]
-    
+    # Std dev (variance) as trace of covariance matrix, equivlaent to RMS radius
+    stds = covs.diagonal(offset=0, dim1=-1, dim2=-2).sum(-1).sqrt()
+
+    principal_axes=torch.linalg.eigvalsh(covs).sqrt() # pylint: disable=not-callable
+    ratio = principal_axes[...,0]/principal_axes[...,1]
+
 
     print("Size top / bottom ± at 1σ")
     for i in [0,1]:
-        print(f"{stds[:,i].mean().item():0.5f} ± {(stds[:,i].var()/stds.shape[0]).sqrt().item():0.1}   ", end="")
+        print(f"{stds[:,i].mean().item():0.3} ± {(stds[:,i].var()/stds.shape[0]).sqrt().item():0.1}   ", end="")
     print("\n")
 
     print("Aspect ratio top/bottom")
     for i in [0,1]:
         print(f"{ratio[:,i].mean().item():0.3} ± {(ratio[:,i].var()/ratio.shape[0]).sqrt().item():0.1}   ", end="")
 
-    ratio_mask = ratio > 0.93
-    print("Masked Size top / bottom ± at 1σ")
-    for i in [0,1]:
-        print(f"{stds[:,i][ratio_mask[:,i]].mean().item():0.3}  ", end="")
-    print("\n")
-
-    print("")
-    print("")
-    print("")
-    print("")
     print("")
 
 def _nn_graph(pts: Tensor)->tuple[Tensor, Tensor]:
@@ -409,6 +375,7 @@ def _primary_axis_angle_elfit(pts: Tensor)->Tensor:
     
     ang_b = (torch.tensor(a) + 90.0)%180
     return ang_b * torch.pi / 180
+
 
 def _plot_angular(good_means: Tensor, inp: _NetRes)->None:
 
@@ -665,8 +632,7 @@ CellNo=0
 
 nupc3d_bates, nupc3d_bates_means = mark_bates_data.load_3d_list_and_means()
 trained_weights_bates = torch.load('sample_logs/1766605809-a396351dc2c407f97a32efa35b421a9aa8d2de55/phase_2/final_net.zip', map_location=torch.device('cpu'))
-res_bates_all = [_apply_net(i, trained_weights_bates) for i in nupc3d_bates]
-res_bates = res_bates_all[CellNo]
+res_bates = _apply_net(nupc3d_bates[CellNo], trained_weights_bates)
 good_means_bates = torch.stack(nupc3d_bates_means[CellNo])[res_bates.indices,:]
 
 plt.close('all')
@@ -675,7 +641,7 @@ _plot_angular(good_means_bates, res_bates)
 plt.savefig('tmp/fig3_bates_angular.svg')
 
 #_pca_video(res_bates, 'bates')
-#_pca_video(res_resi, 'resi')
+_pca_video(res_resi, 'resi')
 
 
 print("RESI data")
@@ -738,57 +704,4 @@ def _render_very_many(res: _NetRes)->None:
     for i,p in enumerate(tqdm(pts)):
         save_ply.save_pointcloud_as_mesh(out/f'{i:05}.ply', p, res.net.get_model()[1].cpu().detach(), 2.0, 0.1, 50)
 
-
-def _analyze_data(data: list[Tensor], res: _NetRes)->tuple[Tensor, Tensor]:
-    
-    all_covs_l = []
-    all_top_l = []
-    all_bot_l = []
-    for i in res.indices:
-        datum = data[i]
-        top_mask = datum[:,2] > 0
-        bot_mask = top_mask.logical_not()
-        
-        pts_xy_top = datum[top_mask, 0:2].float().cpu()
-        pts_xy_bot = datum[bot_mask, 0:2].float().cpu()
-
-        #plt.plot(*pts_xy_top.permute(1,0), '*')
-        #plt.plot(*pts_xy_bot.permute(1,0), '*')
-
-        if len(pts_xy_top) < 3 or len(pts_xy_bot) < 3:
-            continue
-
-        cov_top = _cov(pts_xy_top.unsqueeze(0)).squeeze(0)
-        cov_bot = _cov(pts_xy_bot.unsqueeze(0)).squeeze(0)
-
-        cov_both = torch.stack([cov_top, cov_bot], 0)
-        all_covs_l.append(cov_both)
-        all_top_l.append(pts_xy_top)
-        all_bot_l.append(pts_xy_bot)
-
-    covs = torch.stack(all_covs_l, 0)
-
-    all_top = torch.cat(all_top_l,0)
-    all_bot = torch.cat(all_bot_l,0)
-
-    # Std dev (variance) as trace of covariance matrix, equivlaent to RMS radius
-    stds = covs.diagonal(offset=0, dim1=-1, dim2=-2).sum(-1).sqrt()
-
-    principal_axes=torch.linalg.eigvalsh(covs).sqrt() # pylint: disable=not-callable
-    ratio = principal_axes[...,0]/principal_axes[...,1]
-
-
-    print("Size top NR/ bottom CR ± at 1σ")
-    for i in [0,1]:
-        print(f"{stds[:,i].mean().item():0.3} ± {(stds[:,i].var()/stds.shape[0]).sqrt().item():0.1}   ", end="")
-    print("\n")
-
-    print("Aspect ratio top/bottom")
-    for i in [0,1]:
-        print(f"{ratio[:,i].mean().item():0.3} ± {(ratio[:,i].var()/ratio.shape[0]).sqrt().item():0.1}   ", end="")
-
-    print("")
-
-    
-    return all_top, all_bot
 
