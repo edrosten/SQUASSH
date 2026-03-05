@@ -31,7 +31,7 @@ def _main()->None:
     # if you want the model to reject more, make the rejection parameter lower
     rejection = 1.0
 
-    # Patch size here is 64x64x32????????????????????????????????????????
+
     # z_scale is difference in scaling between xy axis and z axis
     data_parameters = train.DataParametersXYYZ(
         image_size_xy = 64,
@@ -41,13 +41,13 @@ def _main()->None:
     )
     
     params_initial = train.TrainingParameters()
-    params_initial.batch_size = 50 
+    params_initial.batch_size = 10 
     params_initial.validity_weight=rejection
 
     # Optimisation parameters
 
     # The number of epochs needs to be set so that the system has reached a stable state by the time the optimisation terminates
-    # If you want to check this ********
+    # If you want to check this you would need to load the log file and plot the loss (see below)
 
     # The blur reduction schedule below is not the fastest (see train_nupc.py for an optimised one) but is designed to be single step and easy 
     # to understand. The main limiting factors for speed are the number of points in the model (here 700) and the number of PSF steps taken
@@ -57,13 +57,16 @@ def _main()->None:
     # A lower learning rate can be used for the whole optimisation at the cost of a longer run time.
 
     params_initial.schedule[0].epochs = 1500
-    params_initial.schedule[0].initial_psf = 15*nm_per_pixel_xy
-    params_initial.schedule[0].final_psf = 3*nm_per_pixel_xy
+    params_initial.schedule[0].initial_psf = 65 # in units of nm
+    params_initial.schedule[0].final_psf = 13 # in units of nm
     params_initial.schedule[0].psf_step_every= 100
     params_initial.schedule[0].initial_lr= 0.0001
     params_initial.schedule[0].final_lr= 0.00005
 
-    dataset_initial = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=8, device=device.device)
+    
+    # LocalisationDataSetMultipleDan6 defines how the data will be rendered, this was used for all SMLM data
+    # If you wish to use non-SMLM data you will need to change to a different renderer 
+    dataset_initial = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=1, device=device.device)
 
 
     # torch dynamo optimises speed performance
@@ -77,7 +80,7 @@ def _main()->None:
     parameterisation.max_stretch_factor_expand = 1.0
     net.to(device.device)
     
-    net._model_intensities.requires_grad=False  # pylint: disable=protected-access
+    net._model_intensities.requires_grad=True  # This allows the intensities of individual points of the model to be varied
 
 
     fast = cast(network.GeneralPredictReconstruction, torch.compile(net))
