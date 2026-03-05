@@ -7,7 +7,7 @@ import mark_bates_data   # noqa pylint:disable=unused-import
 import train
 import network
 import device
-from localisation_data import LocalisationDataSetMultipleDan6
+from localisation_data import DataSet6Plane
 
 
 def _main()->None:
@@ -46,7 +46,7 @@ def _main()->None:
     params_initial.schedule[1].initial_lr= 0.0001
     params_initial.schedule[1].final_lr= 0.0001
 
-    dataset_initial = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=8, device=device.device)
+    dataset_initial = DataSet6Plane(**vars(data_parameters), data=nupc3d, augmentations=8, device=device.device)
 
 
     params_refine = train.TrainingParameters()
@@ -60,7 +60,7 @@ def _main()->None:
     params_refine.schedule[0].initial_lr= 0.0002
     params_refine.schedule[0].final_lr= 0.00005
 
-    dataset_refine = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=1, device=device.device)
+    dataset_refine = DataSet6Plane(**vars(data_parameters), data=nupc3d, augmentations=1, device=device.device)
 
     torch._dynamo.config.cache_size_limit=512  # pylint: disable=protected-access
 

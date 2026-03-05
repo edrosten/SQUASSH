@@ -16,7 +16,7 @@ import network
 import device
 
 # this specifies the type of 3D representation that will be used (this will vary between SMLM data and others)
-from localisation_data import LocalisationDataSetMultipleDan6
+import localisation_data
 
 
 def _main()->None:
@@ -64,9 +64,9 @@ def _main()->None:
     params_initial.schedule[0].final_lr= 0.00005
 
     
-    # LocalisationDataSetMultipleDan6 defines how the data will be rendered, this was used for all SMLM data
+    # DataSet6Plane defines how the data will be rendered, this was used for all SMLM data
     # If you wish to use non-SMLM data you will need to change to a different renderer 
-    dataset_initial = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=1, device=device.device)
+    dataset_initial = localisation_data.DataSet6Plane(**vars(data_parameters), data=nupc3d, augmentations=1, device=device.device)
 
 
     # torch dynamo optimises speed performance
@@ -80,9 +80,6 @@ def _main()->None:
     parameterisation.max_stretch_factor_expand = 1.0
     net.to(device.device)
     
-    net._model_intensities.requires_grad=True  # This allows the intensities of individual points of the model to be varied
-
-
     fast = cast(network.GeneralPredictReconstruction, torch.compile(net))
     train.retrain(fast, dataset_initial, params_initial, 'phase_0')
     

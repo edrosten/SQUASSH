@@ -21,7 +21,7 @@ import network
 import device
 import save_ply
 from train import fwhm_to_sigma, DataParametersXYYZ
-from localisation_data import LocalisationDataSetMultipleDan6
+from localisation_data import DataSet6Plane
 
 plot_size = 31397.046857833866
 FIGSCALE=2
@@ -54,7 +54,7 @@ def process_data_and_plot_some_crap(data3d: List[Tensor], means: List[Tensor], d
     net.load_state_dict(loaded)
     
     # Set up a sataset with the final sigma
-    dataset = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=1, device=device.device)
+    dataset = DataSet6Plane(**vars(data_parameters), data=nupc3d, augmentations=1, device=device.device)
     dataset.set_sigma(fwhm_to_sigma(fwhm))
     loader = DataLoader(dataset, batch_size=1, shuffle=False)
 
