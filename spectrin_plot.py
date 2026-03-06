@@ -7,7 +7,7 @@ import tqdm
 import data.leterrier_spectrin
 import train
 import network
-from localisation_data import LocalisationDataSetMultipleDan6, fwhm_to_sigma
+from localisation_data import DataSet6Plane, fwhm_to_sigma
 
 state = torch.load('log/1702497804-ab7e02133694c362690fd8739f775101e73de379/run-000-phase_0/final_net.zip')
 
@@ -40,7 +40,7 @@ net.eval()
 
 fwhm = 45
 
-dataset = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=data3d, augmentations=1, device=train.device)
+dataset = DataSet6Plane(**vars(data_parameters), data=data3d, augmentations=1, device=train.device)
 dataset.set_sigma(fwhm_to_sigma(45))
 
 fwhm_t = torch.tensor(fwhm, device=dataset[0][0].device)

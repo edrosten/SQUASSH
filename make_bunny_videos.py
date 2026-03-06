@@ -201,7 +201,7 @@ rotations = torch.linalg.matrix_exp(xprodmat(axes))
 rbuns = trn(rotations @ trn(bunnies3D[0].float()).unsqueeze(0).expand(N, 3, -1))
 
 
-datasets = [ localisation_data.LocalisationDataSetMultipleDan6(data=rbuns, **vars(data_parameters), device=device.device) for _ in INDICES]
+datasets = [ localisation_data.DataSet6Plane(data=rbuns, **vars(data_parameters), device=device.device) for _ in INDICES]
 for sigma, dataset in zip(sigmas, datasets):
     dataset.set_sigma(sigma)
 

@@ -9,7 +9,7 @@ from torch import Tensor
 import data_spectrin
 import train
 import network
-from localisation_data import LocalisationDataSetMultipleDan6, RenderDan6
+from localisation_data import DataSet6Plane, RenderDan6
 import device
 import save_ply
 from matrix import trn, scale_along_axis_and_expand_matrix, so3_6D
@@ -356,7 +356,7 @@ def _main()->None:
     )
 
 
-    dataset_initial = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=data3d, augmentations=15, device=device.device)
+    dataset_initial = DataSet6Plane(**vars(data_parameters), data=data3d, augmentations=15, device=device.device)
     dataset_initial.set_batch_size(5)
 
 
