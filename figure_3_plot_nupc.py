@@ -22,7 +22,7 @@ import save_ply
 import render
 from matrix import trn, euler
 from network import GeneralPredictReconstruction
-from localisation_data import LocalisationDataSetMultipleDan6
+from localisation_data import DataSet6Plane
 from train_nupc import PredictReconstruction, AxialStretchRadialExpandWithGeneralShift
 
 
@@ -131,7 +131,7 @@ def _apply_net(nupc3d: list[Tensor], trained_weights: dict, pts:int=700)->_NetRe
     final_sigma = train.fwhm_to_sigma(final_fwhm)
     final_sigma_t = torch.tensor(final_sigma)
 
-    dataset = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=nupc3d, augmentations=1, device=device.device)
+    dataset = DataSet6Plane(**vars(data_parameters), data=nupc3d, augmentations=1, device=device.device)
 
     net, parameterisation = _load_net(nupc3d, trained_weights, pts)
     net.to(device.device)
