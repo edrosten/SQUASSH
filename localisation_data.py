@@ -224,7 +224,7 @@ def RenderDan6(data: List[torch.Tensor])->Callable[..., List[torch.Tensor]]:
     return render_scale
 
 
-def LocalisationDataSetMultipleDan6(
+def DataSet6Plane(
                  image_size_xy: int,
                  image_size_z: int,
                  nm_per_pixel_xy: float,
@@ -247,125 +247,6 @@ def LocalisationDataSetMultipleDan6(
             z_size=image_size_z)
 
     return PointLocalisationDataSet(data, augmentations, renderer, device)
-
-class LocalisationDataSetMultipleAndPrecision(GeneralLocalisationDataSet):
-    '''
-    Localisation dataset with renderings from multiple angles
-
-    Incoming data is a collection of (x,y) pairs per image. Assume distances
-    in nm, centred about 0.
-
-    The dataset class presents this as reconstructed images, returned in the Torch style as c,w,h with c=1
-
-    '''
-
-    def __init__(self,
-                 image_size_xy: int,
-                 image_size_z: int,
-                 nm_per_pixel_xy: float,
-                 z_scale: float,
-                 data: List[torch.Tensor],
-                 augmentations: int = 1,
-                 device: Union[None,torch.device]=None):
-
-        self._image_size_xy = image_size_xy
-        self._image_size_z = image_size_z
-        self._nm_per_pixel_xy = nm_per_pixel_xy
-        self._z_scale = z_scale
-        self._data = data
-        self._augmentations = augmentations
-        self._device = device
-        
-        # Perform a test rendering, use nm_per_pix*3 as sigma. It's arbitrary
-        d= data[0]
-        tmp_sigma= torch.ones(d.shape[0], 2, dtype=d.dtype, device=d.device)*nm_per_pixel_xy*3
-        tmp_weights = torch.ones(1, d.shape[0], dtype=d.dtype, device=d.device)
-
-        result = render.render_multiple(d[...,0:3].unsqueeze(0), tmp_sigma.unsqueeze(0), tmp_weights, nm_per_pixel_xy, z_scale*nm_per_pixel_xy, image_size_xy, image_size_z)
-
-        
-        # Allocate memory based on whatever render returns
-        self._rendered_data = [ torch.zeros(len(data)*augmentations, *i.shape[1:], device=device, dtype=d.dtype)  for i in result]
-
-        self._sigma_xy: Optional[float] = None
-
-        self._data_lowest_sigma_xy = float(min(d[:,3].min().item() for d in data))
-        self._data_lowest_sigma_z = float(min(d[:,4].min().item() for d in data))
-        print("*"*80)
-        print(self._data_lowest_sigma_xy)
-
-        assert data[0].shape[1] == 5, "Data pounts must be 3D + 2 precisions"
-
-    def set_sigma(self, sigma_nm: float)->None:
-        """Updates the rendering sigma. Idempotent.
-        Note this corresponds to the sigma of the most precise point
-        """
-        if sigma_nm == self._sigma_xy:
-            return
-
-        torch.cuda.empty_cache()
-        self._sigma_xy = sigma_nm
-
-        # Sigmas add in quaderature: calculate the additional sigma needed
-        # to make the loswst sigma meet the spec
-        additional_sigma_xy = math.sqrt(sigma_nm**2 - self._data_lowest_sigma_xy**2)
-        additional_sigma_z = math.sqrt(max(0, (self._z_scale*sigma_nm)**2 - self._data_lowest_sigma_z**2))
-
-        print("Re-rendering dataset")
-        for i in tqdm(range(len(self._data)), unit_scale = self._augmentations):
-            pts = self._data[i][:,0:3].to(self._device).unsqueeze(0).expand(self._augmentations, self._data[i].shape[0], 3)
-            
-
-            sigmas = self._data[i][:,3:5].to(self._device)
-            # Add in the additional sigma
-            sigmas = (sigmas**2 + torch.tensor([additional_sigma_xy, additional_sigma_z], device=self._device).expand_as(sigmas)**2).sqrt()
-            sigmas = sigmas.unsqueeze(0).expand(self._augmentations, *sigmas.shape)
-
-            if self._augmentations > 1:
-                angles = torch.rand(self._augmentations, 1, 1, device=self._device, dtype=self._data[0].dtype) * 2 * torch.pi
-                c = torch.cos(angles)
-                s = torch.sin(angles)
-                O = torch.zeros_like(c) # noqa
-                l = torch.ones_like(c) # noqa
-
-                rots = torch.cat((
-                   torch.cat(( c, s, O), 2),
-                    torch.cat((-s, c, O), 2),
-                    torch.cat(( O, O, l), 2)),
-                    1)
-
-                pts = trn(rots @ trn(pts))
-
-            start=i*self._augmentations
-            end=(i+1)*self._augmentations
-            
-            weights = torch.ones((pts.shape[0], pts.shape[1]), dtype=pts.dtype, device=pts.device)
-
-            result = render.render_multiple(centres=pts, 
-                sigma_xy_z_nm=sigmas, 
-                weights=weights, 
-                nm_per_pixel_xy=self._nm_per_pixel_xy, 
-                nm_per_pixel_z =self._nm_per_pixel_xy * self._z_scale,
-                xy_size=self._image_size_xy,
-                z_size=self._image_size_z,
-            )
-            
-            for i,v in enumerate(result):
-                self._rendered_data[i][start:end:,:] = v
-
-
-    def  __len__(self)->int:
-        return self._rendered_data[0].shape[0]
-
-    def __getitem__(self, idx:int)->List[torch.Tensor]:
-        if self._sigma_xy is None:
-            raise RuntimeError('Rendering sigma not set')
-
-        # Add singleton channel dimension
-        return [ i[idx, :, :].unsqueeze(0).float() for i in self._rendered_data]
-
-    def get_augmentations(self)->int:
-        return self._augmentations
 
 
 def _line(start: torch.Tensor, end: torch.Tensor, n:int)->List[torch.Tensor]:
@@ -390,10 +271,9 @@ def _adhoc_test()->None:
     data3d = torch.cat([data3d, data3d + torch.tensor([.5, 0, 0])], 0)
     data3d *= 200
     data3d -= data3d.mean(0)
-    data5d = [torch.cat([data3d, torch.ones_like(data3d)[...,0:2]], -1)]
 
 
-    dataset = LocalisationDataSetMultipleAndPrecision(data=data5d, image_size_xy=64, image_size_z=32, nm_per_pixel_xy=4, z_scale=2, augmentations=1)
+    dataset = LocalisationDataSetMultiple(data=[data3d], image_size_xy=64, image_size_z=32, nm_per_pixel_xy=4, z_scale=2, augmentations=1)
     loader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False)
 
     dataset.set_sigma(1.1)

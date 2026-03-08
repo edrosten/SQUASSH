@@ -46,7 +46,7 @@ def save(filename: Union[Path, str], points: List[Union[torch.Tensor, Tuple[torc
         print("\n".join(verts), file=f)
 
 
-def make_mesh(data:torch.Tensor, weights: torch.Tensor, sigma: float, threshold:float=0.1, size:int=100, maxval: None|float=None, chunksize:int=1000000)->tuple[Any, Any]:
+def make_mesh(data:torch.Tensor, weights: torch.Tensor, sigma: float, threshold:float=0.1, size:int=100, maxval: None|float=None, chunksize:int=100)->tuple[Any, Any]:
     '''Mesh a set of 3D points'''
     hi = data.abs().max() * 1.2 if maxval is None else torch.tensor(maxval*1.0)
 
