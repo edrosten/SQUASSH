@@ -172,11 +172,11 @@ which form the panels in figure 2 of the paper.
 The training schemes for the datasets used in the paper are provided in the
 following files, all of which can be readily run:
 ```
-*train_bunny.py*
+train_bunny.py
 This uses synthetic data in which the Stanford bunny has been stretched along an axis.
 Designed to test difference in performance between our rendering approach, projecting into 3 planes, and projecting into a single 2D plane. 
 Data rendering is in:
-DataSet6Plane
+localisationdata.DataSet6Plane
 Heterogeneity descriptions are in:
 PredictReconstructionStretchExpandValidDan6 (for our rendering approach)
 PredictReconstructionStretchExpandValid (for data projected into 3 planes)
@@ -184,7 +184,7 @@ PredictReconstructionStretch2D (for data projected into a single 2D plane)
 
 train_dan_microtubules.py 
 Data rendering is in:
-DataSet6Plane
+localisationdata.DataSet6Plane
 Heterogeneity description is in:
 PredictReconstructionRepetitionD6
 which uses AxialRepeat, which is what lets a structure appear in a field of view multiple times. Note that here, as in other naming instances, axial refers to an axis whose orientation is optimised, not the axial direction as defined in a microscope.
@@ -197,13 +197,13 @@ RotatedDuplication
 
 train_nupc.py
 Data rendering is in:
-DataSet6Plane
+localisationdata.DataSet6Plane
 Heterogeneity description is in:
 PredictReconstructionStretchExpandValidDan6
 
 train_spectrin.py
 Data rendering is in:
-DataSet6Plane
+localisationdata.DataSet6Plane
 Heterogeneity description is in:
 PredictReconstructionRepetitionD6
 Using AxialRepeatRadialExpand.
