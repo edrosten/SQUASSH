@@ -20,12 +20,12 @@ jobs:
 
       - name: Ruff
         run: |
-          ruff check data/ train*.py
+          ruff check data/ train*.py  figure_2_plot_nupc.py  figure_3_plot_nupc.py 
 
       - name: pylint
         run: |
-          pylint data/ train*.py
+          pylint data/ train*.py  figure_2_plot_nupc.py  figure_3_plot_nupc.py  
 
       - name: mypy
         run: |
-          mypy train*.py
+          mypy train*.py  figure_2_plot_nupc.py  figure_3_plot_nupc.py 
