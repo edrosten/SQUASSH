@@ -304,11 +304,11 @@ class AxialStretchRadialExpand(ModelParameterisation):
     def number_of_parameters(self)->int:
         return 2
 
-    def compute_scale_from_parameters(self, parameters: torch.Tensor)->torch.tensor:
-        return self.max_stretch_factor_axis**torch.tanh(parameters[:,0])
+    def compute_scale_from_parameters(self, parameters: torch.Tensor)->torch.Tensor:
+        return cast(torch.Tensor,self.max_stretch_factor_axis**torch.tanh(parameters[:,0]))
     
-    def compute_expand_from_parameters(self, parameters: torch.Tensor)->torch.tensor:
-        return self.max_stretch_factor_expand**torch.tanh(parameters[:,1])
+    def compute_expand_from_parameters(self, parameters: torch.Tensor)->torch.Tensor:
+        return cast(torch.Tensor,self.max_stretch_factor_expand**torch.tanh(parameters[:,1]))
 
     def _apply_parameterisation(self, model_points: torch.Tensor, model_intensities: torch.Tensor, parameters: torch.Tensor)->Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         '''stretch and expand'''
