@@ -121,6 +121,13 @@ Output from the execution will be in the `log/` directory. The file name will be
 the timestamp that the run started followed by the current version of the
 respoitory.
 
+A simplified version of the approach, designed to be easily adaptable, can be run using:
+```
+python train_nupc_simple.py
+```
+This version is commented to break down the individual components of the analysis and to help guide you if you wish to modify the program.
+
+
 Note this may take some time, but you can skip to the next step straight away.
 
 ## Analyzing the results
