@@ -294,7 +294,7 @@ def _save_renderings(net: network.GeneralPredictReconstruction, res: torch.Tenso
     S=S.detach()
     S.requires_grad = False
     pts = trn(S@trn(pts))
-    #save_ply.save_pointcloud_as_mesh(f"tmp/figure2_{name}_3d.ply", pts, weights, 2.0, 0.1, 100)
+    save_ply.save_pointcloud_as_mesh(f"tmp/figure2_{name}_3d.ply", pts, weights, 2.0, 0.1, 100)
 
 
     zx_flip=euler(torch.tensor([1*torch.pi/2]), 'y')[0]
