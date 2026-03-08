@@ -26,7 +26,7 @@ metric filtered out during the fitting process.
 
 ## Trying out SQUASSH on Colab
 
-[Try training nuclear pore complexes here!](https://colab.research.google.com/github/edrosten/squassh/blob/master/train_nupc.ipynb)
+[Try training nuclear pore complexes here!](https://colab.research.google.com/github/edrosten/squassh/blob/master/train_nupc_simple.ipynb)
 
 The simplest way to try out SQUASSH is to run the Google CoLab notebook above,
 which will run the analysis of the
@@ -57,7 +57,9 @@ patches, each of which contains one instance of the structure to be fitted.
 
 A number of heterogeneity parametrisations are included in the codebase
 including stretch along an axis, circular harmonic distortion and structures
-with multiple repeats in the field of view. If you would like assistance
+with multiple repeats in the field of view. A table giving all of the different 
+heterogeneity parametrisations and where they are used is given in the [FAQs](FAQ.md).
+If you would like assistance
 designing a custom heterogeneity parametrisation do get in touch.
 
 ## Requirements for running locally
@@ -185,10 +187,40 @@ The training schemes for the datasets used in the paper are provided in the
 following files, all of which can be readily run:
 ```
 train_bunny.py
-train_dan_microtubules.py
+This uses synthetic data in which the Stanford bunny has been stretched along an axis.
+Designed to test difference in performance between our rendering approach, projecting into 3 planes, and projecting into a single 2D plane. 
+Data rendering is in:
+localisationdata.DataSet6Plane
+Heterogeneity descriptions are in:
+PredictReconstructionStretchExpandValidDan6 (for our rendering approach)
+PredictReconstructionStretchExpandValid (for data projected into 3 planes)
+PredictReconstructionStretch2D (for data projected into a single 2D plane)
+
+train_dan_microtubules.py 
+Data rendering is in:
+localisationdata.DataSet6Plane
+Heterogeneity description is in:
+PredictReconstructionRepetitionD6
+which uses AxialRepeat, which is what lets a structure appear in a field of view multiple times. Note that here, as in other naming instances, axial refers to an axis whose orientation is optimised, not the axial direction as defined in a microscope.
+
 train_legant.py
+Rendering approach is:
+volumetric.SimpleVolumetric3Plane
+Heterogeneity description is:
+RotatedDuplication
+
 train_nupc.py
+Data rendering is in:
+localisationdata.DataSet6Plane
+Heterogeneity description is in:
+PredictReconstructionStretchExpandValidDan6
+
 train_spectrin.py
+Data rendering is in:
+localisationdata.DataSet6Plane
+Heterogeneity description is in:
+PredictReconstructionRepetitionD6
+Using AxialRepeatRadialExpand.
 ```
 
 There is no configuration system. If you wish to run SQUASSH on the
