@@ -145,7 +145,7 @@ some analysis on those.
 
 We have provided a number of complete examples, 
 in the 
-[Colab notebook](https://colab.research.google.com/github/edrosten/squassh/blob/master/train_nupc.ipynb)
+[Colab notebook](https://colab.research.google.com/github/edrosten/squassh/blob/master/train_nupc_simple.ipynb)
 and in the form of files used to
 generate some of the figures in the paper from the results of SQUASSH runs:
 
@@ -169,7 +169,7 @@ correct positions. This can achieve speed improvements of about a third of the
 length of the run, and so if many runs are planned may be worth doing. See
 the [nuclear pore complex](train_nupc.py) or the 
 [Colab
-notebook](https://colab.research.google.com/github/edrosten/squassh/blob/master/train_nupc.ipynb).
+notebook](https://colab.research.google.com/github/edrosten/squassh/blob/master/train_nupc_simple.ipynb).
 
 
 An alternative approach is to set the number of fluorophores to exactly the
