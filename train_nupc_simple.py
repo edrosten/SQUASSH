@@ -158,9 +158,8 @@ def _main()->None:
     plt.hist(scales[:,0], 30)
     plt.xlabel('Relative scaling of the underlying model in Z')
     plt.ylabel('Count')
-    plt.pause(.1)
+    plt.show()
 
-    plt.figure()
 
         
 if __name__ == "__main__":
