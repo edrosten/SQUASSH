@@ -78,7 +78,7 @@ def make_mesh(data:torch.Tensor, weights: torch.Tensor, sigma: float, threshold:
     return verts, faces
 
 
-def save_pointcloud_as_mesh(filename: Union[Path, str], data:torch.Tensor, weights: torch.Tensor, sigma: float, threshold:float=0.1, size:int=100, colour:tuple[int,int,int,int]=(127,127,127,255), comments: str="", maxval: None|float=None, chunksize:int=1000000)->None:
+def save_pointcloud_as_mesh(filename: Union[Path, str], data:torch.Tensor, weights: torch.Tensor, sigma: float, threshold:float=0.1, size:int=100, colour:tuple[int,int,int,int]=(127,127,127,255), comments: str="", maxval: None|float=None, chunksize:int=100)->None:
     """Mesh a set of 3D points and save as a ply file"""
 
     with open(filename, 'w', encoding='utf-8') as f:
