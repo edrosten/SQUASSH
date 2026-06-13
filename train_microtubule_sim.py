@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 import matplotlib.pyplot as plt
 
-from train_dan_microtubules import LocalisationDataSetMultipleDan6, PredictReconstructionRepetitionD6
+from train_dan_microtubules import DataSet6Plane, PredictReconstructionRepetitionD6
 import device
 from network import GeneralPredictReconstruction
 import train
@@ -100,7 +100,7 @@ def _main()->None:
         z_scale = 1
     )
 
-    dataset_initial = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=data3d, augmentations=1, device=device.device)
+    dataset_initial = DataSet6Plane(**vars(data_parameters), data=data3d, augmentations=1, device=device.device)
     dataset_initial.set_batch_size(1)
 
     for i in range(1):

@@ -72,7 +72,7 @@ def _main()->None:
         torch.compiler.reset()
         fast = cast(network.GeneralPredictReconstruction, torch.compile(net))
         
-        dataset = localisation_data.LocalisationDataSetMultipleDan6(data=bunnies3D, **vars(data_parameters), device=device.device)
+        dataset = localisation_data.DataSet6Plane(data=bunnies3D, **vars(data_parameters), device=device.device)
 
         train.retrain(fast, dataset, params, 'dan6')
     f1()

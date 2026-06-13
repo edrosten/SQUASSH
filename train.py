@@ -366,7 +366,8 @@ def _train_dataset(subdir:Optional[str], param_txt:List[str],
 
             print(len(loader))
             print("-"*80)
-
+            
+            valid_sum = 0.0
 
             for batch_no, batch in enumerate(tqdm((loader))):
 
@@ -374,6 +375,8 @@ def _train_dataset(subdir:Optional[str], param_txt:List[str],
                 optimizer.zero_grad()
                 
                 reconstruction, scale, predicted_sigma, is_valid = net(batch, min_sigma_nm=fwhm_to_sigma(fwhm_t))
+
+                valid_sum += is_valid.sum().item()
 
                 diff_loss = difference_loss(batch, reconstruction, is_valid)
                 scale_loss = _scale_loss(scale)
@@ -464,6 +467,7 @@ def _train_dataset(subdir:Optional[str], param_txt:List[str],
 
             
             print(f"EPOCH_END_TIME {end_time} {overall_start_time-end_time}", file=log_loss)
+            print(f"VALID_ITEMS {valid_sum} {len(dataset)}")
 
             if not time_per_it:
                 time_per_it = iteration_time
@@ -471,7 +475,7 @@ def _train_dataset(subdir:Optional[str], param_txt:List[str],
                 alpha = 0.5
                 time_per_it = (1-alpha) * time_per_it + alpha * iteration_time
 
-            print(f"Done epoch {epoch} {subdir if subdir else ''}")
+            print(f"Done epoch {epoch} {subdir if subdir else ''}, {valid_sum*100.0/len(dataset):.1f}% valid")
             print(f"Time per epoch = {time_per_it:.1f}s")
             remaining = int(time_per_it * (epochs - 1 - epoch))
             print(f"Estimated remaining = {remaining//3600}h {remaining//60%60}m {remaining%60}s")

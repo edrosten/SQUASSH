@@ -7,7 +7,7 @@ import torch
 from torch import Tensor
 from pystrict import strict
 
-from localisation_data import LocalisationDataSetMultipleDan6, RenderDan6
+from localisation_data import DataSet6Plane, RenderDan6
 import data_dan_microtubules
 import device
 import train
@@ -186,7 +186,7 @@ def _main()->None:
         z_scale = 1
     )
 
-    dataset_initial = LocalisationDataSetMultipleDan6(**vars(data_parameters), data=data3d, augmentations=2, device=device.device)
+    dataset_initial = DataSet6Plane(**vars(data_parameters), data=data3d, augmentations=2, device=device.device)
     dataset_initial.set_batch_size(1)
     torch._dynamo.config.cache_size_limit=512 # pylint: disable=protected-access # but probably don't need this anymore
 
