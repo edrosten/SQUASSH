@@ -571,7 +571,8 @@ def _pca_video(res: _NetRes, name:str)->None:
             nm_per_pix = 0.25*4
             pixels = 600//4
             sigma=torch.tensor([2.0], device=device.device)
-            pts_aligned = (centre + pos * 3 * stddev[c] * Vh[c])@trn(R)
+            sigmas = 3 * pos
+            pts_aligned = (centre + sigmas * stddev[c] * Vh[c])@trn(R)
 
             top = render.render_batch_weights(pts_aligned[top_mask].unsqueeze(0)[...,0:2], sigma, intensities[top_mask].unsqueeze(0), nm_per_pix, pixels)[0] 
             bot = render.render_batch_weights(pts_aligned[bot_mask].unsqueeze(0)[...,0:2], sigma, intensities[bot_mask].unsqueeze(0), nm_per_pix, pixels)[0]
@@ -590,7 +591,7 @@ def _pca_video(res: _NetRes, name:str)->None:
             plt.gca().set_yticklabels([])
         plt.subplot(2,3,1)
         plt.ylabel('NR')
-        plt.xlabel('PCA Component 1')
+        plt.xlabel(f'PCA Component 1 @{sigmas:3.1f}σ', loc='left')
         plt.gca().xaxis.set_label_position('top')
         for i in (2,3):
             plt.subplot(2,3,i)
