@@ -33,6 +33,7 @@ class AxialRepeat(network.ModelParameterisation):
 
         self.register_buffer("min_repetition_length", torch.tensor(1.0))
         self.register_buffer("max_repetition_length", torch.tensor(2.0))
+        self.register_buffer("max_displacement", torch.tensor(0.0))
         self.register_buffer("semi_radial_expand", torch.tensor(1.0))
         self.register_buffer("elongation", torch.tensor(1.0))
         self._min_repetitions = min_repetitions
@@ -40,6 +41,7 @@ class AxialRepeat(network.ModelParameterisation):
 
         self.min_repetition_length: torch.Tensor
         self.max_repetition_length: torch.Tensor
+        self.max_displacement: torch.Tensor
         self.semi_radial_expand: torch.Tensor
 
         # This only makes sense for a fixed model
@@ -47,7 +49,7 @@ class AxialRepeat(network.ModelParameterisation):
         self.register_buffer('max_scale', torch.tensor([1.0]))
 
     def number_of_parameters(self)->int:
-        return self._repetitions - self._min_repetitions + 2
+        return 2 + (self._repetitions - self._min_repetitions) + self._repetitions
 
     def get_global_scale(self)->torch.Tensor:
         '''Get global scale'''
@@ -57,7 +59,6 @@ class AxialRepeat(network.ModelParameterisation):
         '''Get the spacing'''
         return (self.max_repetition_length/self.min_repetition_length).pow(torch.sigmoid(self._spacing_parameter)) * self.min_repetition_length
     
-
     def get_axis(self)->torch.Tensor:
         '''Return principal axis as unit vector'''
         return torch.nn.functional.normalize(self._principal_axis, dim=0)
@@ -83,6 +84,12 @@ class AxialRepeat(network.ModelParameterisation):
         '''Compute the elongation factor'''
         return cast(Tensor, self.elongation ** parameters[:,self._repetitions-self._min_repetitions+1].tanh())
 
+    def compute_displacement_from_paramaters(self, parameters: Tensor)->Tensor:
+        '''Compute the axial position displacement'''
+        start = self._repetitions-self._min_repetitions+2
+        return (parameters[:,start:start+self._repetitions] * 10).tanh() * self.max_displacement
+    
+
     def _apply_parameterisation(self, model_points: torch.Tensor, model_intensities: torch.Tensor, parameters: torch.Tensor)->tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         '''stretch and expand'''
         batch_size = parameters.shape[0]
@@ -100,6 +107,7 @@ class AxialRepeat(network.ModelParameterisation):
         repetition_weights = self.compute_repetition_weights_from_parameters(parameters)
         expansion = self.compute_semi_radial_expansion_from_parameters(parameters)
         elongation = self.compute_elongation_from_parameters(parameters)
+        displacement = self.compute_displacement_from_paramaters(parameters)
         
         Sx = matrix.scale_along_axis_matrix(self.get_expansion_axis(), expansion)
         Se = matrix.scale_along_axis_matrix(self.get_axis(), elongation)
@@ -113,7 +121,9 @@ class AxialRepeat(network.ModelParameterisation):
         #    intensities: batch, Nv     expand similarly.
         #
         # Points are shifted along the axis by simple integer multiples of length
-        scaled_lengths = torch.arange(self._repetitions, device=dev, dtype=dtype).unsqueeze(0).expand(batch_size, -1) * length.unsqueeze(1).expand(-1, self._repetitions)
+
+        scaled_lengths = torch.arange(self._repetitions, device=dev, dtype=dtype).unsqueeze(0).expand(batch_size, -1) * length.unsqueeze(1).expand(-1, self._repetitions) + displacement
+
         shifts = scaled_lengths.repeat_interleave(Nv, dim=1).unsqueeze(2).expand(-1, -1, 3) * axis.reshape(1, 1, 3).expand(batch_size, Nv*self._repetitions, 3)
 
         r_points = points.repeat((1, self._repetitions, 1)) + shifts
@@ -166,7 +176,7 @@ def PredictReconstructionRepetitionD6(model_size: int, nm_per_pixel_xy: float, i
     return reconstructor, parameterisation
 def _main()->None:
     
-    data3d = [u.to(device.device).half() for _,t in data_dan_microtubules.load_3d_3(segment_length=128).items() for u in t]
+    data3d = [u.to(device.device).half() for _,t in data_dan_microtubules.load_3d_3().items() for u in t]
 
 
     data_parameters = train.DataParametersXYYZ(
@@ -190,15 +200,16 @@ def _main()->None:
             max_repetitions = 5
         )
 
-        parameterisation.min_repetition_length = torch.tensor(14.)
-        parameterisation.max_repetition_length = torch.tensor(18.)
+        parameterisation.min_repetition_length = torch.tensor(7.)
+        parameterisation.max_repetition_length = torch.tensor(9.)
         parameterisation.semi_radial_expand = torch.tensor(1.2)
+        parameterisation.max_displacement = torch.tensor(1.0)
 
         net.to(device.device)
         
         params = train.TrainingParameters()
         params.batch_size = 20
-        params.validity_weight=0.6
+        params.validity_weight=0.8
 
         params.schedule[0].epochs = 3000
         params.schedule[0].initial_psf = 20
