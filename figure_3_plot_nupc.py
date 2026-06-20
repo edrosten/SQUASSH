@@ -671,7 +671,7 @@ def _render(pts: torch.Tensor, weights: None|Tensor)->tuple[Tensor, Tensor]:
 
     return top, bot
 
-def _renderings(ind: int, data: list[Tensor], res: _NetRes)->None:
+def _renderings(ind: int, data: list[Tensor], res: _NetRes, scalebar:bool=False)->None:
 
     pts_img = res.points_img[ind]
     pts_data = data[res.indices[ind]]
@@ -680,16 +680,27 @@ def _renderings(ind: int, data: list[Tensor], res: _NetRes)->None:
     dat_t, dat_b = [ i.cpu(). numpy() for i in _render(pts_data.to(device.device), None)]
     mod_t, mod_b = [ i.cpu().numpy() for i in  _render(pts_img.to(device.device), res.net.get_model()[1].to(device.device)) ]
 
+    nm_per_pix = 0.25
+    sb_r0 = 30
+    sb_r1 = sb_r0 +15
+    sb_c0 = 50
+    sb_c1 = sb_c0 + int(50 / nm_per_pix) # 50nm scalebar
+    
+    mod_t_rgb = (matplotlib.cm.hot(mod_t/mod_t.max())*255.9).astype(np.uint8)[...,0:3] # type: ignore[attr-defined]  # pylint: disable=no-member
+
+    if scalebar:
+        mod_t_rgb[sb_r0:sb_r1, sb_c0:sb_c1,:]=255
+
     plt.imsave(f'tmp/figure3_{ind}_data_top.png', (matplotlib.cm.hot(dat_t/dat_t.max())*255.9).astype(np.uint8)[...,0:3])  # type: ignore[attr-defined]  # pylint: disable=no-member
     plt.imsave(f'tmp/figure3_{ind}_data_bot.png', (matplotlib.cm.hot(dat_b/dat_b.max())*255.9).astype(np.uint8)[...,0:3])  # type: ignore[attr-defined]  # pylint: disable=no-member
-    plt.imsave(f'tmp/figure3_{ind}_modl_top.png', (matplotlib.cm.hot(mod_t/mod_t.max())*255.9).astype(np.uint8)[...,0:3])  # type: ignore[attr-defined]  # pylint: disable=no-member
+    plt.imsave(f'tmp/figure3_{ind}_modl_top.png', mod_t_rgb)  # pylint: disable=no-member
     plt.imsave(f'tmp/figure3_{ind}_modl_bot.png', (matplotlib.cm.hot(mod_b/mod_b.max())*255.9).astype(np.uint8)[...,0:3])  # type: ignore[attr-defined]  # pylint: disable=no-member
 
     save_ply.save_pointcloud_as_mesh(f'tmp/figure3_{ind}_model.ply', pts_img.cpu(),  res.net.get_model()[1].cpu(), 2.0, 0.1)
 
 # some examples with reasonably complete rings and enough 
 # distortion to illustrate the distortion model
-_renderings(635,  nupc3d_resi, res_resi)
+_renderings(635,  nupc3d_resi, res_resi, True)
 _renderings(752,  nupc3d_resi, res_resi)
 
 

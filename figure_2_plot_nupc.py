@@ -319,9 +319,11 @@ def _save_renderings(net: network.GeneralPredictReconstruction, res: torch.Tenso
     # fixed here https://github.com/matplotlib/matplotlib/issues/30438
     top_rgb = (matplotlib.cm.hot(top/top.max())*255.9).astype(np.uint8)[...,0:3] # type: ignore[attr-defined]  # pylint: disable=no-member
     bot_rgb = (matplotlib.cm.hot(bot/bot.max())*255.9).astype(np.uint8)[...,0:3] # type: ignore[attr-defined]  # pylint: disable=no-member
-
-    top_rgb[sb_r0:sb_r1, sb_c0:sb_c1,:]=255
-    bot_rgb[sb_r0:sb_r1, sb_c0:sb_c1,:]=255
+    
+    #Embed a scalebar
+    if name == "resi":
+        top_rgb[sb_r0:sb_r1, sb_c0:sb_c1,:]=255
+    #bot_rgb[sb_r0:sb_r1, sb_c0:sb_c1,:]=255
 
     
     plt.imsave(f'tmp/figure2_{name}_projection_top.png', top_rgb)
